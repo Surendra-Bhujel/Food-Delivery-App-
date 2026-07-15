@@ -1,9 +1,17 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const http = require('http');
-const { Server } = require('socket.io');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import http from 'http';
+import { Server } from 'socket.io';
+import cookieParser from 'cookie-parser';
+
+// Import Routes (ES Modules)
+import authRoutes from './routes/authRoutes.js';
+import restaurantRoutes from './routes/restaurantRoutes.js';
+import menuRoutes from './routes/menuRoutes.js';
+
+import Restaurant from './models/Restaurant.js';   // Remove "default" if not needed
 
 dotenv.config();
 
@@ -24,13 +32,19 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/menu', menuRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
   res.send('Server is running');
 });
 
-// Socket.IO
+// Socket.IO Connection
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
@@ -44,9 +58,8 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
-
     server.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
+      console.log(`Server running at http://localhost:${PORT}`);
     });
   })
   .catch((err) => {

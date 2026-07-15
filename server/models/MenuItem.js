@@ -25,8 +25,8 @@ const menuItemSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ['Appetizer', 'Main Course', 'Dessert', 'Beverage', 'Side', 'Special', 'Combo'],
-    },
+      trim: true,
+   },
     image: {
       type: String,
       default: 'https://via.placeholder.com/300x200?text=Food+Item',
