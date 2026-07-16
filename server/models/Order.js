@@ -6,7 +6,7 @@ const orderItemSchema = new mongoose.Schema({
     ref: 'MenuItem',
     required: true,
   },
-  name: String,
+  name: { type: String, required: true },
   quantity: {
     type: Number,
     required: true,
@@ -36,40 +36,28 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
     },
     items: [orderItemSchema],
-    subtotal: {
-      type: Number,
-      required: true,
-    },
-    deliveryFee: {
-      type: Number,
-      default: 0,
-    },
-    tax: {
-      type: Number,
-      default: 0,
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
-    },
+    subtotal: { type: Number, required: true },
+    deliveryFee: { type: Number, default: 0 },
+    tax: { type: Number, default: 0 },
+    totalAmount: { type: Number, required: true },
+
     status: {
       type: String,
       enum: ['pending', 'confirmed', 'assigned', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'],
       default: 'pending',
     },
+
     deliveryAddress: {
-      type: {
-        type: String,
-        enum: ['Point'],
-      },
-      coordinates: [Number],
-      formattedAddress: String,
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], required: true }, // [longitude, latitude]
+      formattedAddress: { type: String, required: true },
       contactNumber: String,
       instructions: String,
     },
+
     paymentMethod: {
       type: String,
-      enum: ['card', 'cash', 'digital_wallet'],
+      enum: ['card', 'Cash on Delivery', 'digital_wallet'],
       required: true,
     },
     paymentStatus: {
@@ -80,63 +68,38 @@ const orderSchema = new mongoose.Schema(
     paymentDetails: {
       transactionId: String,
       paymentIntentId: String,
-      paymentMethodId: String,
-      paidAt: Date,
     },
+
     specialInstructions: String,
     estimatedDeliveryTime: Date,
     actualDeliveryTime: Date,
-    // Tracking
+
     statusHistory: [
       {
         status: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
+        timestamp: { type: Date, default: Date.now },
         note: String,
-      }
-    ],
-    // Ratings
-    customerRating: {
-      rating: {
-        type: Number,
-        min: 1,
-        max: 5,
       },
+    ],
+
+    customerRating: {
+      rating: { type: Number, min: 1, max: 5 },
       comment: String,
       createdAt: Date,
     },
     riderRating: {
-      rating: {
-        type: Number,
-        min: 1,
-        max: 5,
-      },
+      rating: { type: Number, min: 1, max: 5 },
       comment: String,
       createdAt: Date,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Indexes for faster queries
+// Indexes
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ restaurant: 1, status: 1 });
 orderSchema.index({ rider: 1, status: 1 });
-orderSchema.index({ status: 1, createdAt: 1 });
-
-// Pre-save middleware to add status history
-orderSchema.pre('save', function(next) {
-  if (this.isModified('status')) {
-    this.statusHistory.push({
-      status: this.status,
-      timestamp: new Date(),
-    });
-  }
-  next();
-});
+orderSchema.index({ status: 1 });
 
 export default mongoose.model('Order', orderSchema);

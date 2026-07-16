@@ -10,7 +10,8 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes.js';
 import restaurantRoutes from './routes/restaurantRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
-
+import cartRoutes from './routes/cartRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 import Restaurant from './models/Restaurant.js';   // Remove "default" if not needed
 
 dotenv.config();
@@ -22,15 +23,21 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 // Initialize Socket.IO
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
     origin: 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   },
 });
 
+
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -38,8 +45,9 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);
+app.use('/api/cart', cartRoutes);   
+app.use('/api/orders', orderRoutes);
 
-// Test Route
 app.get('/', (req, res) => {
   res.send('Server is running');
 });
