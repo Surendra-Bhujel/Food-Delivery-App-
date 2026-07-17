@@ -9,4 +9,4 @@ router.post('/login', login);
 router.post('/logout', logout);
 router.get('/me', protect, getMe);
 
-export default router;
+export default router;  

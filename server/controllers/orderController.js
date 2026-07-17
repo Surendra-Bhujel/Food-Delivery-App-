@@ -334,83 +334,126 @@ export const confirmOrder = async (req, res) => {
 export const assignRider = async (req, res) => {
   try {
     const { riderId } = req.body;
-    const order = await Order.findById(req.params.id).populate('restaurant');
-    
-    if (!order) {
-      return res.status(404).json({
+    const orderId = req.params.id;
+
+    // Basic validation
+    if (!riderId) {
+      return res.status(400).json({
         success: false,
-        message: 'Order not found',
+        message: "riderId is required",
       });
     }
 
-    if (order.restaurant.owner.toString() !== req.user._id.toString()) {
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required",
+      });
+    }
+
+    // Fetch order with necessary populated data
+    const order = await Order.findById(orderId)
+      .populate("restaurant", "name address owner") // populate owner for auth check
+      .populate("customer", "username phone");
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Authorization: Only restaurant owner can assign rider
+    if (order.restaurant?.owner?.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to assign rider',
+        message: "Not authorized to assign rider to this order",
+      });
+    }
+
+    // Prevent re-assigning if already assigned to someone else
+    if (order.rider && order.rider.toString() !== riderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order is already assigned to another rider",
       });
     }
 
     // Verify rider exists and is available
     const rider = await User.findOne({
       _id: riderId,
-      role: 'rider',
-      availability: 'online',
+      role: "rider",
+      availability: "online",
       isActive: true,
     });
 
     if (!rider) {
       return res.status(404).json({
         success: false,
-        message: 'Available rider not found',
+        message: "Available rider not found",
       });
     }
 
+    // Update order
     order.rider = riderId;
-    order.status = 'assigned';
+    order.status = "assigned";
+
     order.statusHistory.push({
-      status: 'assigned',
+      status: "assigned",
       timestamp: new Date(),
       note: `Rider ${rider.username} assigned`,
     });
 
     await order.save();
 
-    // Notify customer and rider
-    io.to(`order_${order._id}`).emit('order:status_update', {
+    // Real-time notifications
+    const orderUpdatePayload = {
       orderId: order._id,
-      status: 'assigned',
+      status: "assigned",
       rider: {
         id: rider._id,
         username: rider.username,
         phone: rider.phone,
       },
       timestamp: new Date().toISOString(),
-    });
+    };
 
-    // Notify rider privately
-    io.to(`user_${riderId}`).emit('order:assigned', {
+    // Notify everyone in the order room (customer + restaurant)
+    io.to(`order_${order._id}`).emit("order:status_update", orderUpdatePayload);
+
+    // Notify rider privately with full order details
+    io.to(`user_${riderId}`).emit("order:assigned", {
       orderId: order._id,
-      restaurant: order.restaurant.name,
-      pickupAddress: order.restaurant.address.formattedAddress,
-      deliveryAddress: order.deliveryAddress.formattedAddress,
-      customerName: order.customer.username,
+      restaurant: {
+        name: order.restaurant.name,
+        address: order.restaurant.address?.formattedAddress,
+      },
+      deliveryAddress: order.deliveryAddress?.formattedAddress,
+      customerName: order.customer?.username,
       totalAmount: order.totalAmount,
     });
 
     res.status(200).json({
       success: true,
-      data: order,
+      message: "Rider assigned successfully",
+      data: {
+        orderId: order._id,
+        status: order.status,
+        rider: {
+          id: rider._id,
+          username: rider.username,
+        },
+      },
     });
   } catch (error) {
-    console.error('Assign rider error:', error);
+    console.error("Assign rider error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error assigning rider',
+      message: "Error assigning rider",
       error: error.message,
     });
   }
 };
-
 // @desc    Update order status (Rider)
 // @route   PUT /api/orders/:id/status
 // @access  Private (Rider or Owner)
