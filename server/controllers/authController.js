@@ -17,7 +17,7 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { username, email, password, role, phone, address } = req.body;
+    const { username, email, password, role, phone} = req.body;
 
     // Validate required fields
     if (!username || !email || !password) {
@@ -46,7 +46,6 @@ export const register = async (req, res) => {
       password,
       role: role || 'customer',
       phone,
-      address,
     });
 
     // Generate JWT
