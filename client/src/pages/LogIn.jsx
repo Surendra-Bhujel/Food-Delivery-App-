@@ -4,6 +4,8 @@ import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverUrl } from "../App";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase";
 
 const LogIn = () => {
   const primaryColor = "#ff4d2d";
@@ -15,6 +17,7 @@ const LogIn = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
   const [formData, setFormData] = useState({
     email: "",
@@ -30,24 +33,66 @@ const LogIn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.email.trim()) {
+      setErr("Email is required");
+      return;
+    }
+
+    if (!formData.password.trim()) {
+      setErr("Password is required");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setErr("Password must be at least 6 characters long");
+      return;
+    }
+
+    setErr("");
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/auth/login`,
-        formData,
-        {
-          withCredentials: true,
-        }
-      );
+      const res = await axios.post(`${serverUrl}/api/auth/login`, formData, {
+        withCredentials: true,
+      });
 
       console.log(res.data);
       navigate("/");
-    } catch (err) {
-      console.log(err.response?.data);
-      alert(err.response?.data?.message || "Login failed");
+    } catch (error) {
+      setErr(error.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setErr("");
+
+    try {
+      const provider = new GoogleAuthProvider();
+
+      const result = await signInWithPopup(auth, provider);
+
+      const { data } = await axios.post(
+        `${serverUrl}/api/auth/google-auth`,
+        {
+          email: result.user.email,
+          googleId: result.user.uid,
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      console.log(data);
+      navigate("/");
+    } catch (error) {
+      setErr(
+        error.response?.data?.message ||
+          error.message ||
+          "Google Sign-In failed",
+      );
     }
   };
 
@@ -60,10 +105,7 @@ const LogIn = () => {
         className="bg-white rounded-2xl shadow-2xl border-2 w-full max-w-md p-8"
         style={{ borderColor }}
       >
-        <h1
-          className="text-3xl font-bold mb-2"
-          style={{ color: primaryColor }}
-        >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: primaryColor }}>
           MithoDelivery
         </h1>
 
@@ -136,8 +178,7 @@ const LogIn = () => {
               backgroundColor: loading ? "#bdbdbd" : primaryColor,
             }}
             onMouseEnter={(e) => {
-              if (!loading)
-                e.currentTarget.style.backgroundColor = hoverColor;
+              if (!loading) e.currentTarget.style.backgroundColor = hoverColor;
             }}
             onMouseLeave={(e) => {
               if (!loading)
@@ -147,12 +188,16 @@ const LogIn = () => {
             {loading ? "Logging In..." : "Log In"}
           </button>
         </form>
+        {err && (
+          <p className="text-red-500 text-center mt-3 font-medium">* {err}</p>
+        )}
 
         {/* Google Button */}
         <button
           type="button"
           disabled={loading}
           className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
+          onClick={handleGoogleAuth}
         >
           <FcGoogle size={20} />
           <span>Log In with Google</span>

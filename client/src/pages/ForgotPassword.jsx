@@ -13,57 +13,144 @@ const ForgotPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
   const navigate = useNavigate();
 
   // Remove formData entirely
 
   const handleEmailChange = (e) => {
+    setErr("");
     setEmail(e.target.value);
   };
 
   const handleOtpChange = (e) => {
+    setErr("");
     setOtp(e.target.value);
   };
 
   const handleNewPasswordChange = (e) => {
+    setErr("");
     setNewPassword(e.target.value);
   };
 
   const handleConfirmPasswordChange = (e) => {
+    setErr("");
     setConfirmPassword(e.target.value);
   };
 
-  const handleSendOtp = () => {
-    if (email) {
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      setErr("Email is required");
+      return;
+    }
+
+    setErr("");
+    setLoading(true);
+
+    try {
+      const res = await axios.post(
+        `${serverUrl}/api/auth/send-otp`,
+        { email },
+        { withCredentials: true },
+      );
+      setErr(res.data.message);
+
       setStep(2);
+    } catch (error) {
+      setErr(error.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleVerifyOtp = () => {
-    if (otp.length === 6) {
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) {
+      setErr("OTP is required");
+      return;
+    }
+
+    if (otp.length !== 4) {
+      setErr("OTP must be 4 digits");
+      return;
+    }
+
+    setErr("");
+    setLoading(true);
+
+    try {
+      await axios.post(
+        `${serverUrl}/api/auth/verify-otp`,
+        {
+          email,
+          otp,
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
       setStep(3);
-    } else {
-      alert("Please enter a valid 6-digit OTP");
+    } catch (error) {
+      setErr(error.response?.data?.message || "Invalid OTP");
+    }finally{
+        setLoading(false);
+    }
+  };
+  const handleResendOtp = async () => {
+    setErr("");
+
+    try {
+      await axios.post(
+        `${serverUrl}/api/auth/send-otp`,
+        { email },
+        {
+          withCredentials: true,
+        },
+      );
+    } catch (error) {
+      setErr(error.response?.data?.message || "Failed to resend OTP");
     }
   };
 
-  const handleResendOtp = () => {
-    alert("OTP has been resent to your email");
-  };
+  const handleResetPassword = async () => {
+    if (!newPassword.trim()) {
+      setErr("New password is required");
+      return;
+    }
 
-  const handleResetPassword = () => {
     if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters long");
+      setErr("Password must be at least 6 characters");
       return;
     }
+
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
+      setErr("Passwords do not match");
       return;
     }
-    
-    alert("Password reset successfully! Please login with your new password.");
-    navigate('/login');
+
+    setErr("");
+    setLoading(true);
+
+    try {
+      await axios.post(
+        `${serverUrl}/api/auth/reset-password`,
+        {
+          email,
+          newPassword,
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      navigate("/login");
+    } catch (error) {
+      setErr(error.response?.data?.message || "Password reset failed");
+    }finally{
+        setLoading(false);
+    }
   };
 
   const togglePasswordVisibility = () => {
@@ -78,17 +165,21 @@ const ForgotPassword = () => {
     <div className="flex w-full items-center justify-center min-h-screen p-4 bg-[#fff9f6]">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-8">
         <div className="flex items-center gap-4 mb-4">
-          <IoMdArrowRoundBack 
-            size={30} 
-            className="text-[#ff4d2d] cursor-pointer" 
+          <IoMdArrowRoundBack
+            size={30}
+            className="text-[#ff4d2d] cursor-pointer"
             onClick={() => {
-              if (step === 1) navigate('/login');
+              if (step === 1) navigate("/login");
               else if (step === 2) setStep(1);
               else setStep(2);
-            }} 
+            }}
           />
           <h1 className="text-2xl font-bold text-center text-[#ff4d2d]">
-            {step === 1 ? "Forgot Password" : step === 2 ? "Verify OTP" : "New Password"}
+            {step === 1
+              ? "Forgot Password"
+              : step === 2
+                ? "Verify OTP"
+                : "New Password"}
           </h1>
         </div>
 
@@ -115,6 +206,7 @@ const ForgotPassword = () => {
             >
               Send OTP
             </button>
+            {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
           </div>
         )}
 
@@ -125,9 +217,7 @@ const ForgotPassword = () => {
               <p className="text-gray-600 text-sm text-center">
                 We've sent a verification code to
               </p>
-              <p className="text-gray-800 font-medium text-center">
-                {email}
-              </p>
+              <p className="text-gray-800 font-medium text-center">{email}</p>
             </div>
 
             <div className="mb-6">
@@ -137,10 +227,10 @@ const ForgotPassword = () => {
               <input
                 type="text"
                 name="otp"
-                placeholder="Enter 6-digit OTP"
+                placeholder="Enter OTP"
                 value={otp}
                 onChange={handleOtpChange}
-                maxLength="6"
+                maxLength="4"
                 required
                 className="w-full rounded-lg px-3 py-2 focus:outline-none border-gray-200 border-[1px] focus:border-[#ff4d2d] transition-colors text-center text-2xl tracking-widest"
               />
@@ -152,6 +242,7 @@ const ForgotPassword = () => {
             >
               Verify OTP
             </button>
+            {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
 
             <div className="text-center">
               <p className="text-gray-600 text-sm">
@@ -196,11 +287,7 @@ const ForgotPassword = () => {
                   onClick={togglePasswordVisibility}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? (
-                    <IoEye size={20} />
-                  ) : (
-                    <IoEyeOff size={20} />
-                  )}
+                  {showPassword ? <IoEye size={20} /> : <IoEyeOff size={20} />}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
@@ -243,6 +330,7 @@ const ForgotPassword = () => {
             >
               Reset Password
             </button>
+            {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
           </div>
         )}
       </div>

@@ -1,17 +1,13 @@
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
-import { sendOTPMail } from '../utils/sendEmail.js';
-import bcrypt from 'bcryptjs';
+import User from "../models/User.js";
+import jwt from "jsonwebtoken";
+import { sendOTPMail } from "../utils/sendEmail.js";
+import bcrypt from "bcryptjs";
 
 // Generate JWT
 const generateToken = (id) => {
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRE,
-    }
-  );
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
 };
 
 // @desc    Register user
@@ -19,13 +15,35 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { username, email, password, role, phone} = req.body;
+    const { username, email, password, role, phone } = req.body;
 
     // Validate required fields
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, and password are required',
+        message: "Username, email, and password are required",
+      });
+    }
+
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required",
+      });
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number must be exactly 10 digits",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
       });
     }
 
@@ -37,7 +55,7 @@ export const register = async (req, res) => {
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email or username',
+        message: "User already exists with this email or username",
       });
     }
 
@@ -46,7 +64,7 @@ export const register = async (req, res) => {
       username,
       email,
       password,
-      role: role || 'customer',
+      role: role || "customer",
       phone,
     });
 
@@ -60,12 +78,12 @@ export const register = async (req, res) => {
     const cookieOptions = {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
     };
 
     // Send token in cookie
-    res.cookie('token', token, cookieOptions);
+    res.cookie("token", token, cookieOptions);
 
     res.status(201).json({
       success: true,
@@ -73,11 +91,11 @@ export const register = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Register Error:', error);
+    console.error("Register Error:", error);
 
     res.status(500).json({
       success: false,
-      message: 'Error registering user',
+      message: "Error registering user",
       error: error.message,
     });
   }
@@ -94,17 +112,17 @@ export const login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password',
+        message: "Please provide email and password",
       });
     }
 
     // Find user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -114,7 +132,7 @@ export const login = async (req, res) => {
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -132,12 +150,12 @@ export const login = async (req, res) => {
     const cookieOptions = {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
     };
 
     // Send cookie
-    res.cookie('token', token, cookieOptions);
+    res.cookie("token", token, cookieOptions);
 
     res.status(200).json({
       success: true,
@@ -145,11 +163,11 @@ export const login = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Login Error:', error);
+    console.error("Login Error:", error);
 
     res.status(500).json({
       success: false,
-      message: 'Error logging in',
+      message: "Error logging in",
       error: error.message,
     });
   }
@@ -161,13 +179,13 @@ export const login = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate('restaurantId', 'name logo')
-      .select('-password');
+      .populate("restaurantId", "name logo")
+      .select("-password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -176,11 +194,11 @@ export const getMe = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Get User Error:', error);
+    console.error("Get User Error:", error);
 
     res.status(500).json({
       success: false,
-      message: 'Error fetching user',
+      message: "Error fetching user",
       error: error.message,
     });
   }
@@ -191,23 +209,23 @@ export const getMe = async (req, res) => {
 // @access  Private
 export const logout = async (req, res) => {
   try {
-    res.cookie('token', '', {
+    res.cookie("token", "", {
       expires: new Date(0),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
     });
 
     res.status(200).json({
       success: true,
-      message: 'Logged out successfully',
+      message: "Logged out successfully",
     });
   } catch (error) {
-    console.error('Logout Error:', error);
+    console.error("Logout Error:", error);
 
     res.status(500).json({
       success: false,
-      message: 'Error logging out',
+      message: "Error logging out",
       error: error.message,
     });
   }
@@ -248,18 +266,13 @@ export const sendOtp = async (req, res) => {
   }
 };
 
-
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
     const user = await User.findOne({ email });
 
-    if (
-      !user ||
-      user.resetOtp !== otp ||
-      user.otpExpire < Date.now()
-    ) {
+    if (!user || user.resetOtp !== otp || user.otpExpire < Date.now()) {
       return res.status(400).json({
         success: false,
         message: "Invalid or expired OTP",
@@ -283,7 +296,6 @@ export const verifyOtp = async (req, res) => {
     });
   }
 };
-
 
 export const resetPassword = async (req, res) => {
   try {
@@ -309,6 +321,46 @@ export const resetPassword = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Password reset successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const googleAuth = async (req, res) => {
+  try {
+    const { fullName, email, phone, role, googleId } = req.body;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        username: fullName,
+        email,
+        phone,
+        role,
+        googleId,
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    user.password = undefined;
+
+    res.cookie("token", token, {
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+
+    return res.status(200).json({
+      success: true,
+      token,
+      user,
     });
   } catch (error) {
     return res.status(500).json({

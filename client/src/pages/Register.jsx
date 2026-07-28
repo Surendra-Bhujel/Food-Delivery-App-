@@ -4,6 +4,8 @@ import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverUrl } from "../App";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase";
 
 const Register = () => {
   const primaryColor = "#ff4d2d";
@@ -15,6 +17,7 @@ const Register = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
 
   const [formData, setFormData] = useState({
     username: "",
@@ -25,6 +28,8 @@ const Register = () => {
   });
 
   const handleChange = (e) => {
+    setErr("");
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -33,24 +38,77 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+
+    console.log("handleSubmit called");
 
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/auth/register`,
-        formData,
-        {
-          withCredentials: true,
-        }
-      );
+      if (!formData.phone.trim()) {
+        setErr("Phone number is required");
+        return;
+      }
+
+      if (!/^\d{10}$/.test(formData.phone)) {
+        setErr("Phone number must be exactly 10 digits");
+        return;
+      }
+
+      if (formData.password.length < 6) {
+        setErr("Password must be at least 6 characters long");
+        return;
+      }
+
+      setErr("");
+      const res = await axios.post(`${serverUrl}/api/auth/register`, formData, {
+        withCredentials: true,
+      });
 
       console.log(res.data);
+      setErr("");
 
       navigate("/");
-    } catch (err) {
-      console.log(err.response?.data);
+    } catch (error) {
+      setErr(error.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    if (!formData.phone.trim()) {
+      setErr("Phone number is required");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(formData.phone)) {
+      setErr("Phone number must be exactly 10 digits");
+      return;
+    }
+
+    try {
+      const provider = new GoogleAuthProvider();
+
+      const result = await signInWithPopup(auth, provider);
+
+      const { data } = await axios.post(
+        `${serverUrl}/api/auth/google-auth`,
+        {
+          fullName: result.user.displayName,
+          email: result.user.email,
+          role: formData.role,
+          phone: formData.phone,
+          googleId: result.user.uid,
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      console.log(data);
+
+      navigate("/");
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Google Sign-In failed");
     }
   };
 
@@ -63,10 +121,7 @@ const Register = () => {
         className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5"
         style={{ border: `1px solid ${borderColor}` }}
       >
-        <h1
-          className="text-3xl font-bold mb-2"
-          style={{ color: primaryColor }}
-        >
+        <h1 className="text-3xl font-bold mb-2" style={{ color: primaryColor }}>
           MithoDelivery
         </h1>
 
@@ -123,7 +178,6 @@ const Register = () => {
               placeholder="Enter your Mobile Number"
               value={formData.phone}
               onChange={handleChange}
-              required
               className="w-full rounded-lg px-3 py-2 focus:outline-none"
               style={{ border: `1px solid ${borderColor}` }}
             />
@@ -159,9 +213,7 @@ const Register = () => {
 
           {/* Role */}
           <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-1">
-              Role
-            </label>
+            <label className="block text-gray-700 font-medium mb-1">Role</label>
 
             <div className="flex gap-2">
               {["customer", "owner", "rider"].map((r) => (
@@ -205,28 +257,32 @@ const Register = () => {
               if (!loading) e.currentTarget.style.backgroundColor = hoverColor;
             }}
             onMouseOut={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = primaryColor;
+              if (!loading)
+                e.currentTarget.style.backgroundColor = primaryColor;
             }}
           >
-            {loading ? "Creating Account..." : "Sign Up"}
+            {loading ? "Creating Account..." : "Register"}
           </button>
         </form>
+        <p className="text-red-500 text-center my-[10px]"> * {err}</p>
 
         {/* Google Button */}
         <button
           type="button"
-          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100"
+          onClick={handleGoogleAuth}
+          disabled={loading}
+          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
         >
           <FcGoogle size={20} />
-          <span>Sign up with Google</span>
+          <span>{loading ? "Please wait..." : "Register with Google"}</span>
         </button>
 
         <p
           className="text-center mt-6 cursor-pointer"
-          onClick={() => navigate("/signin")}
+          onClick={() => navigate("/login")}
         >
           Already have an account?{" "}
-          <span style={{ color: primaryColor }}>Sign In</span>
+          <span style={{ color: primaryColor }}>Log In</span>
         </p>
       </div>
     </div>
