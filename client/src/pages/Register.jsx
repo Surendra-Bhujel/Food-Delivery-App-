@@ -6,6 +6,9 @@ import axios from "axios";
 import { serverUrl } from "../App";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase";
+import { ClipLoader } from "react-spinners";
+import { useDispatch } from "react-redux";
+import { setUserData } from "../redux/userSlice";
 
 const Register = () => {
   const primaryColor = "#ff4d2d";
@@ -18,6 +21,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const dispatch=useDispatch();
 
   const [formData, setFormData] = useState({
     username: "",
@@ -39,7 +43,8 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("handleSubmit called");
+    setLoading(true);
+    setErr("");
 
     try {
       if (!formData.phone.trim()) {
@@ -61,6 +66,7 @@ const Register = () => {
       const res = await axios.post(`${serverUrl}/api/auth/register`, formData, {
         withCredentials: true,
       });
+      dispatch(setUserData(res.data));
 
       console.log(res.data);
       setErr("");
@@ -74,6 +80,8 @@ const Register = () => {
   };
 
   const handleGoogleAuth = async () => {
+    setLoading(true);
+    setErr("");
     if (!formData.phone.trim()) {
       setErr("Phone number is required");
       return;
@@ -102,6 +110,7 @@ const Register = () => {
           withCredentials: true,
         },
       );
+      dispatch(setUserData(data))
 
       console.log(data);
 
@@ -249,7 +258,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg py-2 text-white font-semibold  cursor-pointer transition duration-200 disabled:opacity-60"
+            className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
             style={{
               backgroundColor: loading ? "#bdbdbd" : primaryColor,
             }}
@@ -261,7 +270,14 @@ const Register = () => {
                 e.currentTarget.style.backgroundColor = primaryColor;
             }}
           >
-            {loading ? "Creating Account..." : "Register"}
+            {loading ? (
+              <>
+                <ClipLoader color="#ffffff" size={18} />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              "Register"
+            )}
           </button>
         </form>
         <p className="text-red-500 text-center my-[10px]"> * {err}</p>
@@ -271,10 +287,19 @@ const Register = () => {
           type="button"
           onClick={handleGoogleAuth}
           disabled={loading}
-          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
+          className="w-full mt-4 flex items-center justify-center gap-2 border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
         >
-          <FcGoogle size={20} />
-          <span>{loading ? "Please wait..." : "Register with Google"}</span>
+          {loading ? (
+            <>
+              <ClipLoader color="#ff4d2d" size={18} />
+              <span>Please wait...</span>
+            </>
+          ) : (
+            <>
+              <FcGoogle size={20} />
+              <span>Register with Google</span>
+            </>
+          )}
         </button>
 
         <p

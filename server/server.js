@@ -12,7 +12,6 @@ import restaurantRoutes from './routes/restaurantRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
-import Restaurant from './models/Restaurant.js';   // Remove "default" if not needed
 
 dotenv.config();
 

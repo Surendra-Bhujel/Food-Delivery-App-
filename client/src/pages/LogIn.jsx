@@ -6,6 +6,9 @@ import axios from "axios";
 import { serverUrl } from "../App";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase";
+import { ClipLoader } from "react-spinners";
+import { useDispatch } from "react-redux";
+import { setUserData } from "../redux/userSlice";
 
 const LogIn = () => {
   const primaryColor = "#ff4d2d";
@@ -18,6 +21,7 @@ const LogIn = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const dispatch=useDispatch();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -56,6 +60,7 @@ const LogIn = () => {
       const res = await axios.post(`${serverUrl}/api/auth/login`, formData, {
         withCredentials: true,
       });
+      dispatch(setUserData(res.data));
 
       console.log(res.data);
       navigate("/");
@@ -68,6 +73,7 @@ const LogIn = () => {
 
   const handleGoogleAuth = async () => {
     setErr("");
+    setLoading(true);
 
     try {
       const provider = new GoogleAuthProvider();
@@ -85,7 +91,7 @@ const LogIn = () => {
         },
       );
 
-      console.log(data);
+      dispatch(setUserData(data))
       navigate("/");
     } catch (error) {
       setErr(
@@ -93,6 +99,8 @@ const LogIn = () => {
           error.message ||
           "Google Sign-In failed",
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,7 +181,7 @@ const LogIn = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60"
+            className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
             style={{
               backgroundColor: loading ? "#bdbdbd" : primaryColor,
             }}
@@ -185,7 +193,14 @@ const LogIn = () => {
                 e.currentTarget.style.backgroundColor = primaryColor;
             }}
           >
-            {loading ? "Logging In..." : "Log In"}
+            {loading ? (
+              <>
+                <ClipLoader color="#ffffff" size={18} />
+                <span>Logging In...</span>
+              </>
+            ) : (
+              "Log In"
+            )}
           </button>
         </form>
         {err && (
@@ -196,11 +211,20 @@ const LogIn = () => {
         <button
           type="button"
           disabled={loading}
-          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
           onClick={handleGoogleAuth}
+          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
         >
-          <FcGoogle size={20} />
-          <span>Log In with Google</span>
+          {loading ? (
+            <>
+              <ClipLoader size={18} color="#ff4d2d" />
+              <span>Please wait...</span>
+            </>
+          ) : (
+            <>
+              <FcGoogle size={20} />
+              <span>Log In with Google</span>
+            </>
+          )}
         </button>
 
         <p

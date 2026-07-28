@@ -4,6 +4,7 @@ import { IoEye, IoEyeOff } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverUrl } from "../App";
+import { ClipLoader } from "react-spinners";
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1);
@@ -94,8 +95,8 @@ const ForgotPassword = () => {
       setStep(3);
     } catch (error) {
       setErr(error.response?.data?.message || "Invalid OTP");
-    }finally{
-        setLoading(false);
+    } finally {
+      setLoading(false);
     }
   };
   const handleResendOtp = async () => {
@@ -148,8 +149,8 @@ const ForgotPassword = () => {
       navigate("/login");
     } catch (error) {
       setErr(error.response?.data?.message || "Password reset failed");
-    }finally{
-        setLoading(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -201,10 +202,29 @@ const ForgotPassword = () => {
               />
             </div>
             <button
-              onClick={handleSendOtp}
-              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 bg-[#ff4d2d] hover:bg-[#e63d1f]"
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: loading ? "#bdbdbd" : primaryColor,
+              }}
+              onMouseEnter={(e) => {
+                if (!loading)
+                  e.currentTarget.style.backgroundColor = hoverColor;
+              }}
+              onMouseLeave={(e) => {
+                if (!loading)
+                  e.currentTarget.style.backgroundColor = primaryColor;
+              }}
             >
-              Send OTP
+              {loading ? (
+                <>
+                  <ClipLoader color="#ffffff" size={18} />
+                  <span>Logging In...</span>
+                </>
+              ) : (
+                "Log In"
+              )}
             </button>
             {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
           </div>
@@ -238,9 +258,17 @@ const ForgotPassword = () => {
 
             <button
               onClick={handleVerifyOtp}
-              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 bg-[#ff4d2d] hover:bg-[#e63d1f] mb-3"
+              disabled={loading}
+              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 bg-[#ff4d2d] hover:bg-[#e63d1f] mb-3 flex items-center justify-center gap-2"
             >
-              Verify OTP
+              {loading ? (
+                <>
+                  <ClipLoader size={18} color="#fff" />
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                "Verify OTP"
+              )}
             </button>
             {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
 
@@ -326,9 +354,17 @@ const ForgotPassword = () => {
 
             <button
               onClick={handleResetPassword}
-              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 bg-[#ff4d2d] hover:bg-[#e63d1f]"
+              disabled={loading}
+              className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 bg-[#ff4d2d] hover:bg-[#e63d1f] flex items-center justify-center gap-2"
             >
-              Reset Password
+              {loading ? (
+                <>
+                  <ClipLoader size={18} color="#fff" />
+                  <span>Resetting...</span>
+                </>
+              ) : (
+                "Reset Password"
+              )}
             </button>
             {err && <p className="text-red-500 text-center mt-3">* {err}</p>}
           </div>
