@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const { Schema } = mongoose;
 
@@ -72,11 +73,28 @@ const userSchema = new mongoose.Schema ({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Restaurant',
     },
-    lastLogin: Date,
-  },
-  {
-    timestamps: true,
-  }
+   lastLogin: Date,
+
+resetPasswordToken: String,
+resetPasswordExpire: Date,
+
+resetOtp: {
+  type: String,
+},
+
+isOtpVerified: {
+  type: Boolean,
+  default: false,
+},
+
+otpExpire: {
+  type: Date,
+},
+
+},
+{
+  timestamps: true,
+}
 );
 
 
@@ -96,6 +114,25 @@ userSchema.pre('save', async function(){
 // Compare password method 
 userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
+};
+
+
+// Generate reset password token
+userSchema.methods.getResetPasswordToken = function () {
+
+  // Generate random token
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // Hash token and save to database
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Token expires in 15 minutes
+  this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+
+  return resetToken;
 };
 
 

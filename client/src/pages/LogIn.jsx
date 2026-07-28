@@ -5,11 +5,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverUrl } from "../App";
 
-const Register = () => {
+const LogIn = () => {
   const primaryColor = "#ff4d2d";
   const hoverColor = "#e64323";
   const bgColor = "#fff9f6";
-  const borderColor = "#ddd";
+  const borderColor = "#cbd5e1";
 
   const navigate = useNavigate();
 
@@ -17,11 +17,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    username: "",
     email: "",
     password: "",
-    phone: "",
-    role: "customer",
   });
 
   const handleChange = (e) => {
@@ -37,7 +34,7 @@ const Register = () => {
 
     try {
       const res = await axios.post(
-        `${serverUrl}/api/auth/register`,
+        `${serverUrl}/api/auth/login`,
         formData,
         {
           withCredentials: true,
@@ -45,10 +42,10 @@ const Register = () => {
       );
 
       console.log(res.data);
-
       navigate("/");
     } catch (err) {
       console.log(err.response?.data);
+      alert(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -60,8 +57,8 @@ const Register = () => {
       style={{ backgroundColor: bgColor }}
     >
       <div
-        className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5"
-        style={{ border: `1px solid ${borderColor}` }}
+        className="bg-white rounded-2xl shadow-2xl border-2 w-full max-w-md p-8"
+        style={{ borderColor }}
       >
         <h1
           className="text-3xl font-bold mb-2"
@@ -71,28 +68,10 @@ const Register = () => {
         </h1>
 
         <p className="text-gray-600 mb-8">
-          Create your account to get started with delicious food deliveries
+          Log In to your account to get started with delicious food deliveries
         </p>
 
         <form onSubmit={handleSubmit}>
-          {/* Full Name */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-1">
-              Full Name
-            </label>
-
-            <input
-              type="text"
-              name="username"
-              placeholder="Enter your Full Name"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              className="w-full rounded-lg px-3 py-2 focus:outline-none"
-              style={{ border: `1px solid ${borderColor}` }}
-            />
-          </div>
-
           {/* Email */}
           <div className="mb-4">
             <label className="block text-gray-700 font-medium mb-1">
@@ -104,24 +83,6 @@ const Register = () => {
               name="email"
               placeholder="Enter your Email"
               value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full rounded-lg px-3 py-2 focus:outline-none"
-              style={{ border: `1px solid ${borderColor}` }}
-            />
-          </div>
-
-          {/* Phone */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-1">
-              Phone
-            </label>
-
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Enter your Mobile Number"
-              value={formData.phone}
               onChange={handleChange}
               required
               className="w-full rounded-lg px-3 py-2 focus:outline-none"
@@ -157,80 +118,56 @@ const Register = () => {
             </div>
           </div>
 
-          {/* Role */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-medium mb-1">
-              Role
-            </label>
-
-            <div className="flex gap-2">
-              {["customer", "owner", "rider"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      role: r,
-                    })
-                  }
-                  className="flex-1 rounded-lg px-3 py-2 text-center font-medium transition-colors cursor-pointer"
-                  style={
-                    formData.role === r
-                      ? {
-                          backgroundColor: primaryColor,
-                          color: "white",
-                        }
-                      : {
-                          border: `1px solid ${primaryColor}`,
-                          color: primaryColor,
-                        }
-                  }
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
+          {/* Forgot Password */}
+          <div
+            className="text-right mb-4 font-medium cursor-pointer"
+            style={{ color: primaryColor }}
+            onClick={() => navigate("/forgot-password")}
+          >
+            Forgot Password?
           </div>
 
           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg py-2 text-white font-semibold  cursor-pointer transition duration-200 disabled:opacity-60"
+            className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60"
             style={{
               backgroundColor: loading ? "#bdbdbd" : primaryColor,
             }}
-            onMouseOver={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = hoverColor;
+            onMouseEnter={(e) => {
+              if (!loading)
+                e.currentTarget.style.backgroundColor = hoverColor;
             }}
-            onMouseOut={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = primaryColor;
+            onMouseLeave={(e) => {
+              if (!loading)
+                e.currentTarget.style.backgroundColor = primaryColor;
             }}
           >
-            {loading ? "Creating Account..." : "Sign Up"}
+            {loading ? "Logging In..." : "Log In"}
           </button>
         </form>
 
         {/* Google Button */}
         <button
           type="button"
-          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100"
+          disabled={loading}
+          className="w-full mt-4 flex items-center justify-center gap-2 cursor-pointer border rounded-lg px-4 py-2 transition duration-200 border-gray-400 hover:bg-gray-100 disabled:opacity-60"
         >
           <FcGoogle size={20} />
-          <span>Sign up with Google</span>
+          <span>Log In with Google</span>
         </button>
 
         <p
           className="text-center mt-6 cursor-pointer"
-          onClick={() => navigate("/signin")}
+          onClick={() => navigate("/register")}
         >
-          Already have an account?{" "}
-          <span style={{ color: primaryColor }}>Sign In</span>
+          Don't have an account?{" "}
+          <span style={{ color: primaryColor }}>Register</span>
         </p>
       </div>
     </div>
   );
 };
 
-export default Register;
+export default LogIn;

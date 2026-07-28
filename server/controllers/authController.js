@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import { sendOTPMail } from '../utils/sendEmail.js';
+import bcrypt from 'bcryptjs';
 
 // Generate JWT
 const generateToken = (id) => {
@@ -207,6 +209,111 @@ export const logout = async (req, res) => {
       success: false,
       message: 'Error logging out',
       error: error.message,
+    });
+  }
+};
+
+export const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User does not exist.",
+      });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    user.resetOtp = otp;
+    user.otpExpire = Date.now() + 5 * 60 * 1000;
+    user.isOtpVerified = false;
+
+    await user.save();
+
+    await sendOTPMail(email, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (
+      !user ||
+      user.resetOtp !== otp ||
+      user.otpExpire < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    user.isOtpVerified = true;
+    user.resetOtp = undefined;
+    user.otpExpire = undefined;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user || !user.isOtpVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP verification required",
+      });
+    }
+
+    user.password = newPassword;
+
+    user.isOtpVerified = false;
+    user.resetOtp = undefined;
+    user.otpExpire = undefined;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
