@@ -25,7 +25,6 @@ export const register = async (req, res) => {
       });
     }
 
-
     if (!phone) {
       return res.status(400).json({
         success: false,
@@ -163,8 +162,8 @@ export const login = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("Login Error:", error);
-
+    console.error("Login Error:", error.message);
+    
     res.status(500).json({
       success: false,
       message: "Error logging in",

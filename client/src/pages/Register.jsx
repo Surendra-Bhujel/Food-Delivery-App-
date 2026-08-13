@@ -297,7 +297,7 @@ const Register = () => {
           ) : (
             <>
               <FcGoogle size={20} />
-              <span>Register with Google</span>
+              <span className="cursor-pointer">Register with Google</span>
             </>
           )}
         </button>

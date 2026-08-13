@@ -8,34 +8,45 @@ const useGetMe = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const dispatch=useDispatch()
 
-useEffect(() => {
-  console.log("Hook running");
+  const dispatch = useDispatch();
 
-  const fetchUser = async () => {
-    console.log("Fetching user");
+  useEffect(() => {
+    console.log("Hook running");
 
-    try {
-      const { data } = await axios.get(
-        `${serverUrl}/api/auth/me`,
-        {
-          withCredentials: true,
-        }
-      );
-      dispatch(setUserData(data))
+    const fetchUser = async () => {
+      console.log("Fetching user");
 
-      setUser(data.user);
-    } catch (error) {
-      console.log(error.response);
-      setErr(error.response?.data?.message || "Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const { data } = await axios.get(
+          `${serverUrl}/api/auth/me`,
+          {
+            withCredentials: true,
+          }
+        );
 
-  fetchUser();
-}, []);
+        console.log("ME RESPONSE:", data);
+        console.log("USER:", data.user);
+
+        dispatch(setUserData(data.user));
+
+        setUser(data.user);
+      } catch (error) {
+        console.log("Get Me Error:", error.response);
+
+        setErr(
+          error.response?.data?.message || "Failed to fetch user"
+        );
+
+        dispatch(setUserData(null));
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [dispatch]);
 
   return {
     user,

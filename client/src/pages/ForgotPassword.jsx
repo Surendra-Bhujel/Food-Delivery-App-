@@ -206,15 +206,15 @@ const ForgotPassword = () => {
               disabled={loading}
               className="w-full rounded-lg py-2 text-white font-semibold cursor-pointer transition duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
               style={{
-                backgroundColor: loading ? "#bdbdbd" : primaryColor,
+                backgroundColor: loading ? "#bdbdbd" : 'primaryColor',
               }}
               onMouseEnter={(e) => {
                 if (!loading)
-                  e.currentTarget.style.backgroundColor = hoverColor;
+                  e.currentTarget.style.backgroundColor = 'hoverColor';
               }}
               onMouseLeave={(e) => {
                 if (!loading)
-                  e.currentTarget.style.backgroundColor = primaryColor;
+                  e.currentTarget.style.backgroundColor = 'primaryColor';
               }}
             >
               {loading ? (
