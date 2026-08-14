@@ -7,6 +7,7 @@ import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
 import { useSelector } from "react-redux";
 import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
+import CreateEditRestaurant from "./pages/createEditRestaurant";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -37,6 +38,16 @@ const App = () => {
       <Route
         path="/"
         element={userData ? <Home /> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/create-restaurant"
+        element={
+          userData?.role === "owner" ? (
+            <CreateEditRestaurant />
+          ) : (
+            <Navigate to="/" />
+          )
+        }
       />
     </Routes>
   );

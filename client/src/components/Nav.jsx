@@ -11,7 +11,7 @@ import { setUserData } from "../redux/userSlice";
 
 const Nav = () => {
   const { userData, city } = useSelector((state) => state.user);
-  const { myRestaurantData } = useSelector((state) => state.owner);
+  const { restaurant } = useSelector((state) => state.owner);
   const dispatch = useDispatch();
 
   const [showInfo, setShowInfo] = useState(false);
@@ -65,7 +65,7 @@ const Nav = () => {
         {isOwner ? (
           <>
             {/* Add Food Item - only if restaurant exists */}
-            {myRestaurantData && (
+            {restaurant && (
               <>
                 {/* Desktop */}
                 <button className="hidden md:flex items-center gap-2 px-3 py-1 cursor-pointer rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20">

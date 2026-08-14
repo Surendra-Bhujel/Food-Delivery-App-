@@ -1,13 +1,17 @@
 import axios from "axios";
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { serverUrl } from "../App";
 import { setRestaurant } from "../redux/ownerSlice";
 
 const useGetMyRestaurant = () => {
   const dispatch = useDispatch();
 
+  const { userData } = useSelector((state) => state.user);
+
   useEffect(() => {
+    if (userData?.role !== "owner") return;
+
     const fetchRestaurant = async () => {
       try {
         const result = await axios.get(
@@ -32,7 +36,9 @@ const useGetMyRestaurant = () => {
     };
 
     fetchRestaurant();
-  }, [dispatch]);
+  }, [dispatch, userData]);
+
+  return null;
 };
 
 export default useGetMyRestaurant;
