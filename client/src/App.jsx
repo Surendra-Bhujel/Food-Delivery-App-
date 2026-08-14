@@ -6,12 +6,14 @@ import Home from "./pages/Home";
 import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
 import { useSelector } from "react-redux";
+import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 
 export const serverUrl = "http://localhost:5000";
 
 const App = () => {
   useGetMe();
   useGetCity();
+  useGetMyRestaurant();
 
   const { userData } = useSelector((state) => state.user);
 

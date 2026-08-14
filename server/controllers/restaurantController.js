@@ -1,6 +1,6 @@
-import Restaurant from '../models/Restaurant.js';
-import MenuItem from '../models/MenuItem.js';
-import User from '../models/User.js';
+import Restaurant from "../models/Restaurant.js";
+import MenuItem from "../models/MenuItem.js";
+import User from "../models/User.js";
 
 // @desc    Create a restaurant
 // @route   POST /api/restaurants
@@ -20,11 +20,13 @@ export const createRestaurant = async (req, res) => {
     } = req.body;
 
     // Check if user already owns a restaurant
-    const existingRestaurant = await Restaurant.findOne({ owner: req.user._id });
+    const existingRestaurant = await Restaurant.findOne({
+      owner: req.user._id,
+    });
     if (existingRestaurant) {
       return res.status(400).json({
         success: false,
-        message: 'You already own a restaurant',
+        message: "You already own a restaurant",
       });
     }
 
@@ -51,10 +53,10 @@ export const createRestaurant = async (req, res) => {
       data: restaurant,
     });
   } catch (error) {
-    console.error('Create restaurant error:', error);
+    console.error("Create restaurant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating restaurant',
+      message: "Error creating restaurant",
       error: error.message,
     });
   }
@@ -87,7 +89,7 @@ export const getRestaurants = async (req, res) => {
 
     // Filter by cuisine type
     if (cuisine) {
-      query.cuisineType = { $in: cuisine.split(',') };
+      query.cuisineType = { $in: cuisine.split(",") };
     }
 
     // Filter by minimum rating
@@ -102,10 +104,10 @@ export const getRestaurants = async (req, res) => {
 
     // Geospatial query for nearby restaurants
     if (latitude && longitude) {
-      query['address.coordinates'] = {
+      query["address.coordinates"] = {
         $nearSphere: {
           $geometry: {
-            type: 'Point',
+            type: "Point",
             coordinates: [parseFloat(longitude), parseFloat(latitude)],
           },
           $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
@@ -116,8 +118,8 @@ export const getRestaurants = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const restaurants = await Restaurant.find(query)
-      .populate('owner', 'username email')
-      .populate('menu', 'name price image category isAvailable')
+      .populate("owner", "username email")
+      .populate("menu", "name price image category isAvailable")
       .sort({ rating: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -135,10 +137,10 @@ export const getRestaurants = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get restaurants error:', error);
+    console.error("Get restaurants error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching restaurants',
+      message: "Error fetching restaurants",
       error: error.message,
     });
   }
@@ -150,9 +152,9 @@ export const getRestaurants = async (req, res) => {
 export const getRestaurantById = async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id)
-      .populate('owner', 'username email phone')
+      .populate("owner", "username email phone")
       .populate({
-        path: 'menu',
+        path: "menu",
         match: { isAvailable: true },
         options: { sort: { category: 1 } },
       });
@@ -160,7 +162,7 @@ export const getRestaurantById = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found',
+        message: "Restaurant not found",
       });
     }
 
@@ -181,10 +183,10 @@ export const getRestaurantById = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get restaurant error:', error);
+    console.error("Get restaurant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching restaurant',
+      message: "Error fetching restaurant",
       error: error.message,
     });
   }
@@ -200,7 +202,7 @@ export const updateRestaurant = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found',
+        message: "Restaurant not found",
       });
     }
 
@@ -208,7 +210,7 @@ export const updateRestaurant = async (req, res) => {
     if (restaurant.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to update this restaurant',
+        message: "Not authorized to update this restaurant",
       });
     }
 
@@ -218,7 +220,7 @@ export const updateRestaurant = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
 
     res.status(200).json({
@@ -226,10 +228,10 @@ export const updateRestaurant = async (req, res) => {
       data: updatedRestaurant,
     });
   } catch (error) {
-    console.error('Update restaurant error:', error);
+    console.error("Update restaurant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating restaurant',
+      message: "Error updating restaurant",
       error: error.message,
     });
   }
@@ -245,14 +247,14 @@ export const toggleRestaurant = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found',
+        message: "Restaurant not found",
       });
     }
 
     if (restaurant.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to toggle this restaurant',
+        message: "Not authorized to toggle this restaurant",
       });
     }
 
@@ -266,10 +268,41 @@ export const toggleRestaurant = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Toggle restaurant error:', error);
+    console.error("Toggle restaurant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error toggling restaurant',
+      message: "Error toggling restaurant",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get logged-in owner's restaurant
+// @route   GET /api/restaurants/my-restaurant
+// @access  Private (Owner only)
+export const getMyRestaurant = async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findOne({
+      owner: req.user._id,
+    }).populate("menu");
+
+    if (!restaurant) {
+      return res.status(404).json({
+        success: false,
+        message: "Restaurant not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: restaurant,
+    });
+  } catch (error) {
+    console.error("Get my restaurant error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching restaurant",
       error: error.message,
     });
   }
