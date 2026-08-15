@@ -12,8 +12,6 @@ const EditItem = () => {
 
   const { restaurant } = useSelector((state) => state.owner);
 
-  const existingItem = restaurant?.menu?.find((item) => item._id === id);
-
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -32,38 +30,51 @@ const EditItem = () => {
 
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
-  // Pre-fill form once existingItem is available
+  // Fetch the existing item from the backend
   useEffect(() => {
-    if (existingItem) {
-      setName(existingItem.name || "");
-      setDescription(existingItem.description || "");
-      setPrice(existingItem.price ?? "");
-      setCategory(existingItem.category || "");
-      setFoodType(existingItem.foodType || "Other");
-      setSpicyLevel(existingItem.spicyLevel || "Medium");
-      setPreparationTime(
-        existingItem.preparationTime != null
-          ? String(existingItem.preparationTime)
-          : "15",
-      );
-      setCalories(
-        existingItem.calories != null ? String(existingItem.calories) : "",
-      );
-      setIsAvailable(
-        existingItem.isAvailable != null ? existingItem.isAvailable : true,
-      );
+    const fetchItem = async () => {
+      try {
+        setInitializing(true);
+        setFetchError(false);
 
-      if (existingItem.image) {
-        setImagePreview(existingItem.image);
+        const response = await axios.get(`${serverUrl}/api/menu/${id}`, {
+          withCredentials: true,
+        });
+
+        const item = response.data.data;
+
+        setName(item.name || "");
+        setDescription(item.description || "");
+        setPrice(item.price ?? "");
+        setCategory(item.category || "");
+        setFoodType(item.foodType || "Other");
+        setSpicyLevel(item.spicyLevel || "Medium");
+        setPreparationTime(
+          item.preparationTime != null ? String(item.preparationTime) : "15",
+        );
+        setCalories(item.calories != null ? String(item.calories) : "");
+        setIsAvailable(item.isAvailable != null ? item.isAvailable : true);
+
+        if (item.image) {
+          setImagePreview(item.image);
+        }
+      } catch (error) {
+        console.error(
+          "Fetch menu item error:",
+          error.response?.data || error.message,
+        );
+        setFetchError(true);
+      } finally {
+        setInitializing(false);
       }
+    };
 
-      setInitializing(false);
-    } else if (restaurant) {
-      // Restaurant loaded but no matching item found
-      setInitializing(false);
+    if (id) {
+      fetchItem();
     }
-  }, [existingItem, restaurant]);
+  }, [id]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -174,7 +185,19 @@ const EditItem = () => {
     );
   }
 
-  if (!initializing && !existingItem) {
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-[#fff9f6] flex items-center justify-center px-4">
+        <div className="rounded-xl bg-white p-8 text-center shadow-md">
+          <h2 className="text-lg font-medium text-gray-600">
+            Loading item details...
+          </h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
     return (
       <div className="min-h-screen bg-[#fff9f6] flex items-center justify-center px-4">
         <div className="rounded-xl bg-white p-8 text-center shadow-md">
@@ -498,8 +521,7 @@ const EditItem = () => {
               />
 
               <p className="mt-2 text-xs text-gray-400">
-                Leave empty to keep the current image. Maximum file size:
-                5MB.
+                Leave empty to keep the current image. Maximum file size: 5MB.
               </p>
             </div>
           </div>

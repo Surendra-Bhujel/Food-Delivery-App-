@@ -113,9 +113,36 @@ export const updateMenuItem = async (req, res) => {
       });
     }
 
+    const updateData = { ...req.body };
+
+    // Only overwrite the image if a new file was uploaded
+    if (req.file) {
+      updateData.image = `http://localhost:5000/uploads/${req.file.filename}`;
+    }
+
+    // Cast numeric/boolean fields that arrive as strings from FormData
+    if (updateData.price !== undefined) {
+      updateData.price = Number(updateData.price);
+    }
+
+    if (updateData.preparationTime !== undefined) {
+      updateData.preparationTime = Number(updateData.preparationTime);
+    }
+
+    if (updateData.calories !== undefined && updateData.calories !== "") {
+      updateData.calories = Number(updateData.calories);
+    } else {
+      delete updateData.calories;
+    }
+
+    if (updateData.isAvailable !== undefined) {
+      updateData.isAvailable =
+        updateData.isAvailable === "true" || updateData.isAvailable === true;
+    }
+
     const updatedMenuItem = await MenuItem.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -220,6 +247,33 @@ export const toggleMenuItem = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error toggling menu item",
+      error: error.message,
+    });
+  }
+};
+
+// Get Menu Item By ID
+export const getMenuItemById = async (req, res) => {
+  try {
+    const menuItem = await MenuItem.findById(req.params.id);
+
+    if (!menuItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu item not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: menuItem,
+    });
+  } catch (error) {
+    console.error("Get menu item by id error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching menu item",
       error: error.message,
     });
   }
