@@ -10,17 +10,13 @@ export const addMenuItem = async (req, res) => {
       description,
       price,
       category,
-      image,
-      isAvailable,
-      isVegetarian,
-      isVegan,
-      isGlutenFree,
+      foodType,
       spicyLevel,
       preparationTime,
       calories,
-      nutritionalInfo,
     } = req.body;
 
+    // Validate required fields
     if (!restaurantId) {
       return res.status(400).json({
         success: false,
@@ -35,6 +31,7 @@ export const addMenuItem = async (req, res) => {
       });
     }
 
+    // Find restaurant
     const restaurant = await Restaurant.findById(restaurantId);
 
     if (!restaurant) {
@@ -44,6 +41,7 @@ export const addMenuItem = async (req, res) => {
       });
     }
 
+    // Check ownership
     if (restaurant.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -51,23 +49,29 @@ export const addMenuItem = async (req, res) => {
       });
     }
 
+    // Create image URL
+    let imageUrl = "https://via.placeholder.com/300x200?text=Food+Item";
+
+    if (req.file) {
+      imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    }
+
+    // Create menu item
     const menuItem = await MenuItem.create({
       restaurant: restaurant._id,
-      name,
-      description,
+      name: name.trim(),
+      description: description?.trim() || "",
       price: Number(price),
       category,
-      image,
-      isAvailable: isAvailable !== undefined ? isAvailable : true,
-      isVegetarian: Boolean(isVegetarian),
-      isVegan: Boolean(isVegan),
-      isGlutenFree: Boolean(isGlutenFree),
+      foodType: foodType || "Other",
+      image: imageUrl,
+      isAvailable: true,
       spicyLevel: spicyLevel || "Medium",
       preparationTime: Number(preparationTime) || 15,
-      calories,
-      nutritionalInfo,
+      calories: calories ? Number(calories) : undefined,
     });
 
+    // Add item to restaurant menu
     restaurant.menu.push(menuItem._id);
 
     await restaurant.save();

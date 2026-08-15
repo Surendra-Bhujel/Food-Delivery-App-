@@ -29,7 +29,7 @@ const menuItemSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      required: true,
+      required: [true, "Category is required"],
       trim: true,
     },
 
@@ -38,24 +38,15 @@ const menuItemSchema = new mongoose.Schema(
       default: "https://via.placeholder.com/300x200?text=Food+Item",
     },
 
+    foodType: {
+      type: String,
+      enum: ["Vegetarian", "Non-Vegetarian", "Other"],
+      default: "Other",
+    },
+
     isAvailable: {
       type: Boolean,
       default: true,
-    },
-
-    isVegetarian: {
-      type: Boolean,
-      default: false,
-    },
-
-    isVegan: {
-      type: Boolean,
-      default: false,
-    },
-
-    isGlutenFree: {
-      type: Boolean,
-      default: false,
     },
 
     spicyLevel: {
@@ -67,10 +58,12 @@ const menuItemSchema = new mongoose.Schema(
     preparationTime: {
       type: Number,
       default: 15,
+      min: 1,
     },
 
     calories: {
       type: Number,
+      min: 0,
     },
 
     nutritionalInfo: {

@@ -40,7 +40,8 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-app.use("/uploads", express.static("public"));
+app.use("/uploads", express.static("public/uploads"));
+app.use("/", express.static("public"));
 
 // Routes
 app.use("/api/auth", authRoutes);

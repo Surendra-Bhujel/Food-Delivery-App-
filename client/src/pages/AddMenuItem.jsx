@@ -1,99 +1,97 @@
 import React, { useState } from "react";
 import { IoMdArrowBack } from "react-icons/io";
-import { FaUtensils, FaLeaf, FaPepperHot, FaClock } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import axios from "axios";
 
 import { serverUrl } from "../App";
-import { setRestaurant } from "../redux/ownerSlice";
 
 const AddMenuItem = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
   const { restaurant } = useSelector((state) => state.owner);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("Main Course");
+  const [category, setCategory] = useState("");
 
-  const [isVegetarian, setIsVegetarian] = useState(false);
-  const [isVegan, setIsVegan] = useState(false);
-
+  const [foodType, setFoodType] = useState("Other");
   const [spicyLevel, setSpicyLevel] = useState("Medium");
-  const [preparationTime, setPreparationTime] = useState(15);
+
+  const [preparationTime, setPreparationTime] = useState("15");
+  const [calories, setCalories] = useState("");
+
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const [loading, setLoading] = useState(false);
 
-  if (!restaurant) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff9f6]">
-        <div className="text-center">
-          <FaUtensils size={50} className="mx-auto mb-4 text-[#ff4d2d]" />
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
 
-          <h2 className="text-xl font-bold text-gray-800">
-            Restaurant not found
-          </h2>
+    if (!file) {
+      return;
+    }
 
-          <p className="mt-2 text-gray-500">
-            Please create your restaurant first.
-          </p>
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
 
-          <button
-            onClick={() => navigate("/owner-dashboard")}
-            className="mt-5 rounded-lg bg-[#ff4d2d] px-5 py-2 text-white"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size should be less than 5MB.");
+      return;
+    }
+
+    setImage(file);
+
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!name || !price || !category) {
-      alert("Please fill in all required fields.");
+    if (!restaurant?._id) {
+      alert("Restaurant not found.");
+      return;
+    }
+
+    if (!name.trim() || !price || !category) {
+      alert("Please fill in item name, price and category.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await axios.post(
-        `${serverUrl}/api/menu`,
-        {
-          restaurantId: restaurant._id,
-          name,
-          description,
-          price: Number(price),
-          category,
-          isAvailable: true,
-          isVegetarian,
-          isVegan,
-          isGlutenFree: false,
-          spicyLevel,
-          preparationTime: Number(preparationTime),
-        },
-        {
-          withCredentials: true,
-        },
-      );
+      const formData = new FormData();
 
-      // Add newly created item to Redux restaurant
-      const newMenuItem = response.data.data;
+      formData.append("restaurantId", restaurant._id);
+      formData.append("name", name);
+      formData.append("description", description);
+      formData.append("price", price);
+      formData.append("category", category);
+      formData.append("foodType", foodType);
+      formData.append("spicyLevel", spicyLevel);
+      formData.append("preparationTime", preparationTime);
 
-      dispatch(
-        setRestaurant({
-          ...restaurant,
-          menu: [...(restaurant.menu || []), newMenuItem],
-        }),
-      );
+      if (calories) {
+        formData.append("calories", calories);
+      }
 
-      alert("Menu item added successfully!");
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const response = await axios.post(`${serverUrl}/api/menu`, formData, {
+        withCredentials: true,
+      });
+
+      console.log("Menu item created:", response.data);
+
+      alert("Menu item added successfully.");
 
       navigate("/owner-dashboard");
     } catch (error) {
@@ -102,55 +100,95 @@ const AddMenuItem = () => {
         error.response?.data || error.message,
       );
 
-      alert(
-        error.response?.data?.message ||
-          "Something went wrong while adding the menu item.",
-      );
+      alert(error.response?.data?.message || "Failed to add menu item.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (!restaurant) {
+    return (
+      <div className="min-h-screen bg-[#fff9f6] flex items-center justify-center px-4">
+        <div className="rounded-xl bg-white p-8 text-center shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800">
+            Restaurant not found
+          </h2>
+
+          <p className="mt-2 text-gray-500">
+            Please create your restaurant before adding menu items.
+          </p>
+
+          <button
+            onClick={() => navigate("/owner-dashboard")}
+            className="mt-5 rounded-lg bg-[#ff4d2d] px-5 py-2.5 text-white"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-orange-50 to-white px-4 py-8">
+    <div className="min-h-screen bg-[#fff9f6] px-4 py-8">
       {/* Back button */}
       <button
         type="button"
         onClick={() => navigate("/owner-dashboard")}
-        className="absolute left-5 top-5 cursor-pointer"
+        className="mb-6 flex items-center gap-2 text-gray-700 transition hover:text-[#ff4d2d]"
       >
-        <IoMdArrowBack size={35} className="text-[#ff4d2d]" />
+        <IoMdArrowBack size={24} />
+        <span>Back to Dashboard</span>
       </button>
 
-      <div className="mx-auto mt-14 w-full max-w-lg rounded-2xl border border-orange-100 bg-white p-6 shadow-xl sm:p-8">
+      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-6 shadow-lg md:p-8">
         {/* Header */}
-        <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
-            <FaUtensils size={35} className="text-[#ff4d2d]" />
-          </div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Add Menu Item</h1>
 
-          <h1 className="text-3xl font-extrabold text-gray-900">
-            Add Menu Item
-          </h1>
-
-          <p className="mt-2 text-sm text-gray-500">
-            Add a delicious item to your restaurant menu.
+          <p className="mt-1 text-sm text-gray-500">
+            Add a new food or drink to your restaurant menu.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Name */}
+        {/* Restaurant information */}
+        <div className="mb-8 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center gap-4">
+            {restaurant.logo && (
+              <img
+                src={restaurant.logo}
+                alt={restaurant.name}
+                className="h-16 w-16 rounded-lg object-cover"
+              />
+            )}
+
+            <div>
+              <h2 className="font-semibold text-gray-900">{restaurant.name}</h2>
+
+              <p className="text-sm text-gray-500">
+                {restaurant.address?.formattedAddress}
+              </p>
+
+              <p className="text-sm text-gray-500">
+                {restaurant.address?.city}, {restaurant.address?.state}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Item Name */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Item Name *
+              Item Name
             </label>
 
             <input
               type="text"
-              placeholder="e.g. Chicken Burger"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="e.g. Chicken Burger"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
               required
             />
           </div>
@@ -162,95 +200,125 @@ const AddMenuItem = () => {
             </label>
 
             <textarea
-              placeholder="Tell customers about this item..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows="3"
-              className="w-full resize-none rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Describe the food item"
+              rows="4"
+              maxLength="500"
+              className="w-full resize-none rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
             />
+
+            <p className="mt-1 text-xs text-gray-400">
+              Maximum 500 characters.
+            </p>
           </div>
 
-          {/* Price */}
+          {/* Price and Category */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Price */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Price
+              </label>
+
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g. 350"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
+                required
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Category
+              </label>
+
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
+                required
+              >
+                <option value="">Select category</option>
+
+                <option value="Starters">Starters</option>
+                <option value="Main Course">Main Course</option>
+                <option value="Rice & Biryani">Rice & Biryani</option>
+                <option value="Noodles & Pasta">Noodles & Pasta</option>
+                <option value="Bread">Bread</option>
+                <option value="Curry">Curry</option>
+                <option value="Salads">Salads</option>
+                <option value="Soups">Soups</option>
+                <option value="Snacks">Snacks</option>
+                <option value="Desserts">Desserts</option>
+                <option value="Beverages">Beverages</option>
+                <option value="Combos">Combos</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Food Type */}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Food Type
+            </label>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setFoodType("Vegetarian")}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                  foodType === "Vegetarian"
+                    ? "border-green-600 bg-green-50 text-green-700"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Vegetarian
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFoodType("Non-Vegetarian")}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                  foodType === "Non-Vegetarian"
+                    ? "border-red-500 bg-red-50 text-red-600"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Non-Vegetarian
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFoodType("Other")}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                  foodType === "Other"
+                    ? "border-gray-600 bg-gray-100 text-gray-800"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Other
+              </button>
+            </div>
+          </div>
+
+          {/* Spicy Level */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Price *
-            </label>
-
-            <input
-              type="number"
-              placeholder="e.g. 350"
-              min="0"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              required
-            />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Category *
-            </label>
-
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="Main Course">Main Course</option>
-              <option value="Burger">Burger</option>
-              <option value="Pizza">Pizza</option>
-              <option value="Momo">Momo</option>
-              <option value="Noodles">Noodles</option>
-              <option value="Rice">Rice</option>
-              <option value="Snacks">Snacks</option>
-              <option value="Drinks">Drinks</option>
-              <option value="Dessert">Dessert</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          {/* Vegetarian / Vegan */}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3">
-              <input
-                type="checkbox"
-                checked={isVegetarian}
-                onChange={(e) => setIsVegetarian(e.target.checked)}
-                className="h-4 w-4"
-              />
-
-              <FaLeaf className="text-green-600" />
-
-              <span className="text-sm font-medium">Vegetarian</span>
-            </label>
-
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3">
-              <input
-                type="checkbox"
-                checked={isVegan}
-                onChange={(e) => setIsVegan(e.target.checked)}
-                className="h-4 w-4"
-              />
-
-              <FaLeaf className="text-green-600" />
-
-              <span className="text-sm font-medium">Vegan</span>
-            </label>
-          </div>
-
-          {/* Spicy level */}
-          <div>
-            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
-              <FaPepperHot className="text-red-500" />
               Spicy Level
             </label>
 
             <select
               value={spicyLevel}
               onChange={(e) => setSpicyLevel(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
             >
               <option value="Mild">Mild</option>
               <option value="Medium">Medium</option>
@@ -259,29 +327,85 @@ const AddMenuItem = () => {
             </select>
           </div>
 
-          {/* Preparation time */}
+          {/* Preparation time + Calories */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Preparation Time
+              </label>
+
+              <input
+                type="number"
+                min="1"
+                value={preparationTime}
+                onChange={(e) => setPreparationTime(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
+              />
+
+              <p className="mt-1 text-xs text-gray-400">Time in minutes.</p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Calories
+              </label>
+
+              <input
+                type="number"
+                min="0"
+                value={calories}
+                onChange={(e) => setCalories(e.target.value)}
+                placeholder="Optional"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
+              />
+            </div>
+          </div>
+
+          {/* Food Image */}
           <div>
-            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
-              <FaClock className="text-[#ff4d2d]" />
-              Preparation Time
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Food Image
             </label>
 
-            <input
-              type="number"
-              min="1"
-              value={preparationTime}
-              onChange={(e) => setPreparationTime(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
+            <div className="rounded-xl border border-dashed border-gray-300 p-4">
+              {imagePreview ? (
+                <div className="mb-4">
+                  <img
+                    src={imagePreview}
+                    alt="Food preview"
+                    className="h-56 w-full rounded-lg object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="mb-4 flex h-48 items-center justify-center rounded-lg bg-gray-50 text-center">
+                  <div>
+                    <p className="text-gray-500">No image selected</p>
 
-            <p className="mt-1 text-xs text-gray-500">Time in minutes</p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      JPG, JPEG, PNG or WEBP
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full cursor-pointer text-sm text-gray-600"
+              />
+
+              <p className="mt-2 text-xs text-gray-400">
+                Maximum file size: 5MB.
+              </p>
+            </div>
           </div>
 
           {/* Submit */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-[#ff4d2d] px-6 py-3 font-semibold text-white shadow-md transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-[#ff4d2d] px-5 py-3 font-semibold text-white transition hover:bg-[#e63e1f] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Adding Item..." : "Add Menu Item"}
           </button>
