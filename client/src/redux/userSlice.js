@@ -2,19 +2,52 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const userSlice = createSlice({
   name: "user",
+
   initialState: {
     userData: null,
-    city: null,
+
+    currentCity: "",
+    currentState: "",
+    currentAddress: "",
+
+    currentLatitude: null,
+    currentLongitude: null,
   },
+
   reducers: {
     setUserData: (state, action) => {
       state.userData = action.payload;
     },
-    setCity: (state, action) => {
-      state.city = action.payload;
+
+    setCurrentCity: (state, action) => {
+      state.currentCity = action.payload;
+    },
+
+    setCurrentState: (state, action) => {
+      state.currentState = action.payload;
+    },
+
+    setCurrentAddress: (state, action) => {
+      state.currentAddress = action.payload;
+    },
+
+    setCurrentLocation: (state, action) => {
+      state.currentCity = action.payload.city || "";
+      state.currentState = action.payload.state || "";
+      state.currentAddress = action.payload.address || "";
+
+      state.currentLatitude = action.payload.latitude ?? null;
+      state.currentLongitude = action.payload.longitude ?? null;
     },
   },
 });
 
-export const { setUserData, setCity } = userSlice.actions;
+export const {
+  setUserData,
+  setCurrentCity,
+  setCurrentState,
+  setCurrentAddress,
+  setCurrentLocation,
+} = userSlice.actions;
+
 export default userSlice.reducer;
