@@ -5,6 +5,7 @@ import { IoCartOutline } from "react-icons/io5";
 import { RxCross1 } from "react-icons/rx";
 import { TbReceiptDollar } from "react-icons/tb";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import { serverUrl } from "../App";
@@ -14,6 +15,8 @@ import {
 } from "../redux/userSlice";
 
 const Nav = () => {
+  const navigate = useNavigate();
+
   const {
     userData,
     currentCity,
@@ -127,6 +130,7 @@ const Nav = () => {
 
       dispatch(setUserData(null));
       setShowInfo(false);
+      navigate("/login");
     } catch (error) {
       console.log(
         "Logout Error:",
@@ -144,7 +148,10 @@ const Nav = () => {
   return (
     <nav className="w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 left-0 z-[9999] bg-[#fff9f6]">
 
-      <h1 className="text-3xl font-bold text-[#ff4d2d]">
+      <h1
+        className="text-3xl font-bold text-[#ff4d2d] cursor-pointer"
+        onClick={() => navigate("/")}
+      >
         MithoDelivery
       </h1>
 
@@ -187,18 +194,27 @@ const Nav = () => {
           <>
             {restaurant && (
               <>
-                <button className="hidden md:flex items-center gap-2 px-3 py-1 cursor-pointer rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20">
+                <button
+                  onClick={() => navigate("/add-menu-item")}
+                  className="hidden md:flex items-center gap-2 px-3 py-1 cursor-pointer rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20"
+                >
                   <FaPlus size={16} />
                   <span>Add Food Item</span>
                 </button>
 
-                <button className="md:hidden flex items-center px-3 py-1 cursor-pointer rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d]">
+                <button
+                  onClick={() => navigate("/add-menu-item")}
+                  className="md:hidden flex items-center px-3 py-1 cursor-pointer rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d]"
+                >
                   <FaPlus size={16} />
                 </button>
               </>
             )}
 
-            <div className="hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d] font-medium hover:bg-[#ff4d2d]/20">
+            <div
+              onClick={() => navigate("/owner-orders")}
+              className="hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d] font-medium hover:bg-[#ff4d2d]/20"
+            >
 
               <TbReceiptDollar size={20} />
 
@@ -212,7 +228,10 @@ const Nav = () => {
 
             </div>
 
-            <div className="md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d]">
+            <div
+              onClick={() => navigate("/owner-orders")}
+              className="md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d]"
+            >
 
               <TbReceiptDollar size={20} />
 
@@ -248,7 +267,10 @@ const Nav = () => {
             )}
 
             {isCustomer && (
-              <div className="relative cursor-pointer">
+              <div
+                onClick={() => navigate("/cart")}
+                className="relative cursor-pointer"
+              >
 
                 <IoCartOutline
                   size={25}
@@ -262,7 +284,10 @@ const Nav = () => {
               </div>
             )}
 
-            <button className="hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20 cursor-pointer">
+            <button
+              onClick={() => navigate("/my-orders")}
+              className="hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20 cursor-pointer"
+            >
               My Orders
             </button>
           </>
@@ -287,7 +312,13 @@ const Nav = () => {
             </div>
 
             {isCustomer && (
-              <div className="md:hidden text-[#ff4d2d] font-semibold cursor-pointer">
+              <div
+                onClick={() => {
+                  navigate("/my-orders");
+                  setShowInfo(false);
+                }}
+                className="md:hidden text-[#ff4d2d] font-semibold cursor-pointer"
+              >
                 My Orders
               </div>
             )}
