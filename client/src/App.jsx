@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import CreateEditRestaurant from "./pages/CreateEditRestaurant";
 import OwnerDashboard from "./components/OwnerDashboard";
 import AddMenuItem from "./pages/AddMenuItem";
+import EditItem from "./pages/EditItem";
 
 import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
@@ -62,7 +63,7 @@ const App = () => {
         }
       />
 
-      {/* Create / Edit Restaurant */}
+      {/* Create Restaurant */}
       <Route
         path="/create-restaurant"
         element={
@@ -74,12 +75,36 @@ const App = () => {
         }
       />
 
+      {/* Edit Restaurant */}
+      <Route
+        path="/edit-restaurant/:id"
+        element={
+          userData?.role === "owner" && restaurant ? (
+            <CreateEditRestaurant />
+          ) : (
+            <Navigate to="/owner-dashboard" replace />
+          )
+        }
+      />
+
       {/* Add Menu Item */}
       <Route
         path="/add-menu-item"
         element={
           userData?.role === "owner" && restaurant ? (
             <AddMenuItem />
+          ) : (
+            <Navigate to="/owner-dashboard" replace />
+          )
+        }
+      />
+
+      {/* Edit Menu Item */}
+      <Route
+        path="/edit-menu-item/:id"
+        element={
+          userData?.role === "owner" && restaurant ? (
+            <EditItem />
           ) : (
             <Navigate to="/owner-dashboard" replace />
           )

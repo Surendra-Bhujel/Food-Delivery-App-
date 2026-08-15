@@ -9,8 +9,17 @@ import {
 } from "react-icons/fi";
 import { FaRegHeart, FaHeart } from "react-icons/fa";
 import { MdAccessTime, MdLocalFireDepartment } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
 
-const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView }) => {
+const OwnerItemCard = ({
+  data,
+  onEdit,
+  onDelete,
+  onToggleAvailability,
+  onView,
+}) => {
+  const navigate = useNavigate();
+
   const [isHovered, setIsHovered] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -40,20 +49,37 @@ const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView })
   // Spicy level indicator
   const getSpicyLevelColor = (level) => {
     switch (level?.toLowerCase()) {
-      case "mild": return "bg-green-100 text-green-700";
-      case "medium": return "bg-yellow-100 text-yellow-700";
-      case "hot": return "bg-orange-100 text-orange-700";
-      case "extra hot": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "mild":
+        return "bg-green-100 text-green-700";
+      case "medium":
+        return "bg-yellow-100 text-yellow-700";
+      case "hot":
+        return "bg-orange-100 text-orange-700";
+      case "extra hot":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
     }
   };
 
   // Food type indicator
   const getFoodTypeColor = (type) => {
     switch (type?.toLowerCase()) {
-      case "vegetarian": return "bg-green-100 text-green-700";
-      case "non-vegetarian": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "vegetarian":
+        return "bg-green-100 text-green-700";
+      case "non-vegetarian":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  // Navigate to edit page unless the parent supplies its own onEdit handler
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(data._id);
+    } else {
+      navigate(`/edit-menu-item/${data._id}`);
     }
   };
 
@@ -105,7 +131,9 @@ const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView })
             <button
               onClick={() => onToggleAvailability(data._id)}
               className="rounded-full bg-white p-2.5 shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl"
-              title={data.isAvailable ? "Mark as Unavailable" : "Mark as Available"}
+              title={
+                data.isAvailable ? "Mark as Unavailable" : "Mark as Available"
+              }
             >
               {data.isAvailable ? (
                 <FiEye className="h-4 w-4 text-green-600" />
@@ -143,7 +171,7 @@ const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView })
               {data.foodType && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getFoodTypeColor(
-                    data.foodType
+                    data.foodType,
                   )}`}
                 >
                   {data.foodType}
@@ -153,7 +181,7 @@ const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView })
               {data.spicyLevel && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getSpicyLevelColor(
-                    data.spicyLevel
+                    data.spicyLevel,
                   )}`}
                 >
                   🌶️ {data.spicyLevel}
@@ -231,15 +259,13 @@ const OwnerItemCard = ({ data, onEdit, onDelete, onToggleAvailability, onView })
             </button>
 
             {/* Edit Button */}
-            {onEdit && (
-              <button
-                onClick={() => onEdit(data._id)}
-                className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-all duration-200 hover:bg-blue-100 hover:scale-105"
-              >
-                <FiEdit2 className="h-4 w-4" />
-                Edit
-              </button>
-            )}
+            <button
+              onClick={handleEdit}
+              className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-all duration-200 hover:bg-blue-100 hover:scale-105"
+            >
+              <FiEdit2 className="h-4 w-4" />
+              Edit
+            </button>
 
             {/* Delete Button */}
             {onDelete && (
