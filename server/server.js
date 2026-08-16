@@ -12,6 +12,7 @@ import restaurantRoutes from "./routes/restaurantRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import riderRoutes from './routes/riderRoutes.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use("/api/restaurants", restaurantRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use('/api/rider', riderRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server is running");

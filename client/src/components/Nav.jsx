@@ -11,7 +11,7 @@ import axios from "axios";
 import { serverUrl } from "../App";
 import { setUserData, setCurrentLocation } from "../redux/userSlice";
 
-const Nav = () => {
+const Nav = ({ searchQuery, onSearchChange }) => {
   const navigate = useNavigate();
 
   const { userData, currentCity, currentState, currentAddress } = useSelector(
@@ -116,6 +116,12 @@ const Nav = () => {
 
   const isOwner = userData?.role === "owner";
 
+  const handleSearchInput = (value) => {
+    if (onSearchChange) {
+      onSearchChange(value);
+    }
+  };
+
   return (
     <nav className="w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 left-0 z-[9999] bg-[#fff9f6]">
       <h1
@@ -140,6 +146,8 @@ const Nav = () => {
 
             <input
               type="text"
+              value={searchQuery || ""}
+              onChange={(e) => handleSearchInput(e.target.value)}
               placeholder="Search Delicious Food..."
               className="px-[10px] text-gray-700 outline-none w-full"
             />
@@ -272,6 +280,8 @@ const Nav = () => {
 
             <input
               type="text"
+              value={searchQuery || ""}
+              onChange={(e) => handleSearchInput(e.target.value)}
               placeholder="Search Delicious Food..."
               autoFocus
               className="px-[10px] text-gray-700 outline-none w-full"

@@ -22,6 +22,7 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -49,13 +50,30 @@ const UserDashboard = () => {
   const getRestaurantImage = (restaurant) =>
     restaurant.logo || "https://via.placeholder.com/400x250?text=Restaurant";
 
-  const filteredRestaurants = selectedCategory
-    ? restaurants.filter((r) =>
-        r.cuisineType?.some(
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  // Restaurants matching category + search (by name, cuisine, or any menu item name)
+  const filteredRestaurants = restaurants.filter((r) => {
+    const matchesCategory = selectedCategory
+      ? r.cuisineType?.some(
           (c) => c.toLowerCase() === selectedCategory.toLowerCase(),
-        ),
-      )
-    : restaurants;
+        )
+      : true;
+
+    if (!matchesCategory) return false;
+
+    if (!normalizedQuery) return true;
+
+    const nameMatch = r.name?.toLowerCase().includes(normalizedQuery);
+    const cuisineMatch = r.cuisineType?.some((c) =>
+      c.toLowerCase().includes(normalizedQuery),
+    );
+    const menuMatch = (r.menu || []).some((item) =>
+      item.name?.toLowerCase().includes(normalizedQuery),
+    );
+
+    return nameMatch || cuisineMatch || menuMatch;
+  });
 
   // Flatten every restaurant's populated menu into a single list of dishes,
   // attaching restaurant info to each item so FoodCard can show/link to it.
@@ -72,11 +90,31 @@ const UserDashboard = () => {
         })),
     );
 
-    // Simple shuffle so the "suggested" row isn't the same every load
     const shuffled = [...allItems].sort(() => Math.random() - 0.5);
 
     return shuffled.slice(0, 8);
   }, [restaurants]);
+
+  // Dishes matching the search query, across all restaurants
+  const matchingDishes = useMemo(() => {
+    if (!normalizedQuery) return [];
+
+    return restaurants.flatMap((restaurant) =>
+      (restaurant.menu || [])
+        .filter(
+          (item) =>
+            item.isAvailable &&
+            item.name?.toLowerCase().includes(normalizedQuery),
+        )
+        .map((item) => ({
+          ...item,
+          restaurant: {
+            _id: restaurant._id,
+            name: restaurant.name,
+          },
+        })),
+    );
+  }, [restaurants, normalizedQuery]);
 
   const handleAddToCart = async (item, quantity) => {
     const result = await dispatch(
@@ -104,7 +142,7 @@ const UserDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#fff9f6]">
-      <Nav />
+      <Nav searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-[100px] sm:px-6 lg:px-8">
         {/* Hero */}
@@ -120,58 +158,20 @@ const UserDashboard = () => {
           </p>
         </div>
 
-        {/* Category Filter */}
-        <div className="mb-10">
-          <h2 className="mb-4 text-xl font-bold text-gray-800">
-            What's on your mind?
-          </h2>
-
-          <div className="flex gap-5 overflow-x-auto pb-3 scrollbar-hide">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className="flex flex-shrink-0 flex-col items-center gap-2 group"
-            >
-              <div
-                className={`flex h-24 w-24 items-center justify-center rounded-full border-4 bg-white shadow-md transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-28 sm:w-28 ${
-                  selectedCategory === null
-                    ? "border-[#ff4d2d] shadow-lg shadow-[#ff4d2d]/20"
-                    : "border-transparent"
-                }`}
-              >
-                <span className="text-3xl">🍽️</span>
-              </div>
-
-              <span
-                className={`text-sm font-semibold whitespace-nowrap ${
-                  selectedCategory === null ? "text-[#ff4d2d]" : "text-gray-700"
-                }`}
-              >
-                All
-              </span>
-            </button>
-
-            {categories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                isSelected={selectedCategory === category.name}
-                onClick={() => setSelectedCategory(category.name)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Suggested Food Items */}
-        {!loading && !error && suggestedItems.length > 0 && (
+        {/* If searching, show matching dishes first */}
+        {normalizedQuery && (
           <div className="mb-10">
             <h2 className="mb-5 text-2xl font-bold text-gray-800">
-              Suggested for you
+              {matchingDishes.length > 0
+                ? `Dishes matching "${searchQuery}"`
+                : `No dishes found for "${searchQuery}"`}
             </h2>
 
-            <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide">
-              {suggestedItems.map((item) => (
-                <div key={item._id} className="w-64 flex-shrink-0">
+            {matchingDishes.length > 0 && (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {matchingDishes.map((item) => (
                   <div
+                    key={item._id}
                     onClick={() =>
                       navigate(`/restaurant/${item.restaurant._id}`)
                     }
@@ -179,18 +179,92 @@ const UserDashboard = () => {
                   >
                     <FoodCard data={item} onAddToCart={handleAddToCart} />
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Category Filter */}
+        {!normalizedQuery && (
+          <div className="mb-10">
+            <h2 className="mb-4 text-xl font-bold text-gray-800">
+              What's on your mind?
+            </h2>
+
+            <div className="flex gap-5 overflow-x-auto pb-3 scrollbar-hide">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="flex flex-shrink-0 flex-col items-center gap-2 group"
+              >
+                <div
+                  className={`flex h-24 w-24 items-center justify-center rounded-full border-4 bg-white shadow-md transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl sm:h-28 sm:w-28 ${
+                    selectedCategory === null
+                      ? "border-[#ff4d2d] shadow-lg shadow-[#ff4d2d]/20"
+                      : "border-transparent"
+                  }`}
+                >
+                  <span className="text-3xl">🍽️</span>
                 </div>
+
+                <span
+                  className={`text-sm font-semibold whitespace-nowrap ${
+                    selectedCategory === null
+                      ? "text-[#ff4d2d]"
+                      : "text-gray-700"
+                  }`}
+                >
+                  All
+                </span>
+              </button>
+
+              {categories.map((category) => (
+                <CategoryCard
+                  key={category.id}
+                  category={category}
+                  isSelected={selectedCategory === category.name}
+                  onClick={() => setSelectedCategory(category.name)}
+                />
               ))}
             </div>
           </div>
         )}
 
+        {/* Suggested Food Items */}
+        {!normalizedQuery &&
+          !loading &&
+          !error &&
+          suggestedItems.length > 0 && (
+            <div className="mb-10">
+              <h2 className="mb-5 text-2xl font-bold text-gray-800">
+                Suggested for you
+              </h2>
+
+              <div className="flex gap-4 overflow-x-auto pb-3 scrollbar-hide">
+                {suggestedItems.map((item) => (
+                  <div key={item._id} className="w-64 flex-shrink-0">
+                    <div
+                      onClick={() =>
+                        navigate(`/restaurant/${item.restaurant._id}`)
+                      }
+                      className="cursor-pointer"
+                    >
+                      <FoodCard data={item} onAddToCart={handleAddToCart} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         {/* Restaurant Grid */}
         <div>
           <h2 className="mb-5 text-2xl font-bold text-gray-800">
-            {selectedCategory
-              ? `${selectedCategory} Restaurants`
-              : "All Restaurants"}
+            {normalizedQuery
+              ? `Restaurants matching "${searchQuery}"`
+              : selectedCategory
+                ? `${selectedCategory} Restaurants`
+                : "All Restaurants"}
           </h2>
 
           {loading ? (
@@ -210,9 +284,11 @@ const UserDashboard = () => {
               </h3>
 
               <p className="mt-2 text-sm text-gray-500">
-                {selectedCategory
-                  ? `No restaurants serving ${selectedCategory} right now.`
-                  : "Check back soon for restaurants in your area."}
+                {normalizedQuery
+                  ? `No restaurants matching "${searchQuery}".`
+                  : selectedCategory
+                    ? `No restaurants serving ${selectedCategory} right now.`
+                    : "Check back soon for restaurants in your area."}
               </p>
             </div>
           ) : (
