@@ -17,6 +17,9 @@ import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 import useGetCart from "./hooks/useGetCart";
 
 import { useSelector } from "react-redux";
+import Checkout from "./pages/Checkout";
+import MyOrders from "./pages/MyOrders";
+import OwnerOrders from "./components/OwnerOrderCard";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -127,6 +130,39 @@ const App = () => {
             <EditItem />
           ) : (
             <Navigate to="/owner-dashboard" replace />
+          )
+        }
+      />
+      {/* Checkout */}
+      <Route
+        path="/checkout"
+        element={
+          userData?.role === "customer" ? (
+            <Checkout />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      {/* My Orders */}
+      <Route
+        path="/my-orders"
+        element={
+          userData?.role === "customer" ? (
+            <MyOrders />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      {/* Owner Orders */}
+      <Route
+        path="/owner-orders"
+        element={
+          userData?.role === "owner" ? (
+            <OwnerOrders />
+          ) : (
+            <Navigate to="/" replace />
           )
         }
       />
