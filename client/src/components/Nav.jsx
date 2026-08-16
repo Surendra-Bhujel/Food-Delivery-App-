@@ -9,36 +9,29 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import { serverUrl } from "../App";
-import {
-  setUserData,
-  setCurrentLocation,
-} from "../redux/userSlice";
+import { setUserData, setCurrentLocation } from "../redux/userSlice";
 
 const Nav = () => {
   const navigate = useNavigate();
 
-  const {
-    userData,
-    currentCity,
-    currentState,
-    currentAddress,
-  } = useSelector((state) => state.user);
-
-  const { restaurant } = useSelector(
-    (state) => state.owner
+  const { userData, currentCity, currentState, currentAddress } = useSelector(
+    (state) => state.user,
   );
+
+  const { restaurant } = useSelector((state) => state.owner);
+
+  const { items: cartItems } = useSelector((state) => state.cart);
 
   const dispatch = useDispatch();
 
   const [showInfo, setShowInfo] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
+  const cartItemCount =
+    cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
   useEffect(() => {
-    if (
-      currentCity &&
-      currentState &&
-      currentAddress
-    ) {
+    if (currentCity && currentState && currentAddress) {
       return;
     }
 
@@ -50,8 +43,7 @@ const Nav = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const { latitude, longitude } =
-            position.coords;
+          const { latitude, longitude } = position.coords;
 
           const response = await axios.get(
             "https://nominatim.openstreetmap.org/reverse",
@@ -62,11 +54,10 @@ const Nav = () => {
                 format: "json",
                 addressdetails: 1,
               },
-            }
+            },
           );
 
-          const addressData =
-            response.data.address;
+          const addressData = response.data.address;
 
           const city =
             addressData.city ||
@@ -75,13 +66,9 @@ const Nav = () => {
             addressData.municipality ||
             "";
 
-          const state =
-            addressData.state ||
-            addressData.province ||
-            "";
+          const state = addressData.state || addressData.province || "";
 
-          const address =
-            response.data.display_name || "";
+          const address = response.data.display_name || "";
 
           dispatch(
             setCurrentLocation({
@@ -90,33 +77,22 @@ const Nav = () => {
               address,
               latitude,
               longitude,
-            })
+            }),
           );
         } catch (error) {
-          console.log(
-            "Location error:",
-            error
-          );
+          console.log("Location error:", error);
         }
       },
       (error) => {
-        console.log(
-          "Geolocation error:",
-          error.message
-        );
+        console.log("Geolocation error:", error.message);
       },
       {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
-      }
+      },
     );
-  }, [
-    currentCity,
-    currentState,
-    currentAddress,
-    dispatch,
-  ]);
+  }, [currentCity, currentState, currentAddress, dispatch]);
 
   const handleLogout = async () => {
     try {
@@ -125,29 +101,23 @@ const Nav = () => {
         {},
         {
           withCredentials: true,
-        }
+        },
       );
 
       dispatch(setUserData(null));
       setShowInfo(false);
       navigate("/login");
     } catch (error) {
-      console.log(
-        "Logout Error:",
-        error
-      );
+      console.log("Logout Error:", error);
     }
   };
 
-  const isCustomer =
-    userData?.role === "customer";
+  const isCustomer = userData?.role === "customer";
 
-  const isOwner =
-    userData?.role === "owner";
+  const isOwner = userData?.role === "owner";
 
   return (
     <nav className="w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 left-0 z-[9999] bg-[#fff9f6]">
-
       <h1
         className="text-3xl font-bold text-[#ff4d2d] cursor-pointer"
         onClick={() => navigate("/")}
@@ -157,39 +127,27 @@ const Nav = () => {
 
       {isCustomer && (
         <div className="md:w-[60%] lg:w-[40%] h-[50px] bg-white shadow-xl rounded-lg items-center gap-[20px] px-[20px] hidden md:flex">
-
           <div className="flex items-center w-[30%] overflow-hidden gap-[10px] px-[10px] border-r-[2px] border-gray-400">
-
-            <FaLocationDot
-              size={25}
-              className="text-[#ff4d2d]"
-            />
+            <FaLocationDot size={25} className="text-[#ff4d2d]" />
 
             <div className="w-[80%] truncate text-gray-600">
               {currentCity || "Detecting..."}
             </div>
-
           </div>
 
           <div className="w-[70%] flex items-center gap-[10px]">
-
-            <FaSearch
-              size={25}
-              className="text-[#ff4d2d]"
-            />
+            <FaSearch size={25} className="text-[#ff4d2d]" />
 
             <input
               type="text"
               placeholder="Search Delicious Food..."
               className="px-[10px] text-gray-700 outline-none w-full"
             />
-
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-4">
-
         {isOwner ? (
           <>
             {restaurant && (
@@ -215,53 +173,37 @@ const Nav = () => {
               onClick={() => navigate("/owner-orders")}
               className="hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d] font-medium hover:bg-[#ff4d2d]/20"
             >
-
               <TbReceiptDollar size={20} />
 
-              <span>
-                My Orders
-              </span>
+              <span>My Orders</span>
 
               <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
                 0
               </span>
-
             </div>
 
             <div
               onClick={() => navigate("/owner-orders")}
               className="md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d]"
             >
-
               <TbReceiptDollar size={20} />
 
               <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
                 0
               </span>
-
             </div>
           </>
         ) : (
           <>
             {isCustomer && (
               <div
-                onClick={() =>
-                  setShowSearch(
-                    (prev) => !prev
-                  )
-                }
+                onClick={() => setShowSearch((prev) => !prev)}
                 className="md:hidden cursor-pointer"
               >
                 {showSearch ? (
-                  <RxCross1
-                    size={25}
-                    className="text-[#ff4d2d]"
-                  />
+                  <RxCross1 size={25} className="text-[#ff4d2d]" />
                 ) : (
-                  <FaSearch
-                    size={25}
-                    className="text-[#ff4d2d]"
-                  />
+                  <FaSearch size={25} className="text-[#ff4d2d]" />
                 )}
               </div>
             )}
@@ -271,16 +213,13 @@ const Nav = () => {
                 onClick={() => navigate("/cart")}
                 className="relative cursor-pointer"
               >
+                <IoCartOutline size={25} className="text-[#ff4d2d]" />
 
-                <IoCartOutline
-                  size={25}
-                  className="text-[#ff4d2d]"
-                />
-
-                <span className="absolute right-[-9px] top-[-12px] text-[#ff4d2d] text-sm">
-                  0
-                </span>
-
+                {cartItemCount > 0 && (
+                  <span className="absolute right-[-9px] top-[-12px] flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#ff4d2d] text-[11px] font-bold text-white">
+                    {cartItemCount}
+                  </span>
+                )}
               </div>
             )}
 
@@ -294,19 +233,14 @@ const Nav = () => {
         )}
 
         <div
-          onClick={() =>
-            setShowInfo((prev) => !prev)
-          }
+          onClick={() => setShowInfo((prev) => !prev)}
           className="w-[40px] h-[40px] rounded-full flex items-center justify-center bg-[#ff4d2d] text-white text-[18px] shadow-xl font-semibold cursor-pointer"
         >
-          {userData?.username
-            ?.slice(0, 1)
-            .toUpperCase() || "U"}
+          {userData?.username?.slice(0, 1).toUpperCase() || "U"}
         </div>
 
         {showInfo && (
           <div className="fixed top-[80px] right-[10px] md:right-[10%] lg:right-[25%] w-[180px] bg-white shadow-2xl rounded-xl p-[20px] flex flex-col gap-[10px] z-[9999]">
-
             <div className="text-[17px] font-semibold text-gray-800">
               {userData?.username || "User"}
             </div>
@@ -329,17 +263,12 @@ const Nav = () => {
             >
               Log Out
             </div>
-
           </div>
         )}
 
         {isCustomer && showSearch && (
           <div className="fixed top-[80px] left-[20px] right-[20px] bg-white shadow-xl rounded-lg p-[15px] flex items-center gap-[10px] z-[9998] md:hidden">
-
-            <FaSearch
-              size={22}
-              className="text-[#ff4d2d]"
-            />
+            <FaSearch size={22} className="text-[#ff4d2d]" />
 
             <input
               type="text"
@@ -347,7 +276,6 @@ const Nav = () => {
               autoFocus
               className="px-[10px] text-gray-700 outline-none w-full"
             />
-
           </div>
         )}
       </div>

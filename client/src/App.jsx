@@ -14,6 +14,7 @@ import useGetCity from "./hooks/useGetCity";
 import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 
 import { useSelector } from "react-redux";
+import useGetCart from "./hooks/useGetCart";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -21,6 +22,7 @@ const App = () => {
   useGetMe();
   useGetCity();
   useGetMyRestaurant();
+  useGetCart();
 
   const { userData } = useSelector((state) => state.user);
   const { restaurant } = useSelector((state) => state.owner);

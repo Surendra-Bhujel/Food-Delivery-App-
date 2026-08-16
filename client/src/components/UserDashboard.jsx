@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { FaStar } from "react-icons/fa";
 import { MdAccessTime } from "react-icons/md";
@@ -10,9 +10,11 @@ import CategoryCard from "../components/CategoryCard.jsx";
 import FoodCard from "../components/FoodCard.jsx";
 import { serverUrl } from "../App";
 import { categories } from "../category";
+import { addItemToCart, clearConflict } from "../redux/cartSlice";
 
 const UserDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const { currentCity } = useSelector((state) => state.user);
 
@@ -76,9 +78,28 @@ const UserDashboard = () => {
     return shuffled.slice(0, 8);
   }, [restaurants]);
 
-  const handleAddToCart = async (item) => {
-    // TODO: connect to your cart API / Redux action
-    console.log("Add to cart:", item);
+  const handleAddToCart = async (item, quantity) => {
+    const result = await dispatch(
+      addItemToCart({ menuItemId: item._id, quantity }),
+    );
+
+    if (addItemToCart.rejected.match(result) && result.payload?.conflict) {
+      const confirmed = window.confirm(
+        `${result.payload.message}\n\nThis will remove existing items from your cart.`,
+      );
+
+      if (confirmed) {
+        await dispatch(
+          addItemToCart({
+            menuItemId: result.payload.menuItemId,
+            quantity: result.payload.quantity,
+            replaceCart: true,
+          }),
+        );
+      }
+
+      dispatch(clearConflict());
+    }
   };
 
   return (

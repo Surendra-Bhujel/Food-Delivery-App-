@@ -1,7 +1,6 @@
 import { useSelector } from "react-redux";
-import Nav from "../components/Nav";
-import UserDashboard from "../components/userDashboard";
-import OwnerDashboard from "../components/ownerDashboard";
+import UserDashboard from "../components/UserDashboard";
+import OwnerDashboard from "../components/OwnerDashboard";
 import DeliveryBoy from "../components/DeliveryBoy";
 
 const Home = () => {
@@ -10,31 +9,18 @@ const Home = () => {
   if (!userData) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
-        <h1 className="text-2xl font-bold">
-          No user logged in
-        </h1>
+        <h1 className="text-2xl font-bold">No user logged in</h1>
       </div>
     );
   }
 
   return (
     <div className="w-full min-h-screen bg-[#fff9f6]">
+      {userData.role === "customer" && <UserDashboard />}
 
-      {userData.role === "customer" && (
-        <>
-          <Nav />
-          <UserDashboard />
-        </>
-      )}
+      {userData.role === "owner" && <OwnerDashboard />}
 
-      {userData.role === "owner" && (
-        <OwnerDashboard />
-      )}
-
-      {userData.role === "rider" && (
-        <DeliveryBoy />
-      )}
-
+      {userData.role === "rider" && <DeliveryBoy />}
     </div>
   );
 };
