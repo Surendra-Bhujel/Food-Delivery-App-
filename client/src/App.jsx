@@ -8,13 +8,15 @@ import CreateEditRestaurant from "./pages/CreateEditRestaurant";
 import OwnerDashboard from "./components/OwnerDashboard";
 import AddMenuItem from "./pages/AddMenuItem";
 import EditItem from "./pages/EditItem";
+import RestaurantDetail from "./pages/RestaurantDetail";
+import Cart from "./pages/Cart";
 
 import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
 import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
+import useGetCart from "./hooks/useGetCart";
 
 import { useSelector } from "react-redux";
-import useGetCart from "./hooks/useGetCart";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -51,6 +53,22 @@ const App = () => {
       <Route
         path="/"
         element={userData ? <Home /> : <Navigate to="/login" replace />}
+      />
+
+      {/* Restaurant Detail */}
+      <Route
+        path="/restaurant/:id"
+        element={
+          userData ? <RestaurantDetail /> : <Navigate to="/login" replace />
+        }
+      />
+
+      {/* Cart */}
+      <Route
+        path="/cart"
+        element={
+          userData?.role === "customer" ? <Cart /> : <Navigate to="/" replace />
+        }
       />
 
       {/* Owner Dashboard */}
