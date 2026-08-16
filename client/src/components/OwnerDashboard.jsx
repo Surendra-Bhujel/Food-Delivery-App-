@@ -1,11 +1,16 @@
 import React from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+
 import Nav from "../components/Nav.jsx";
 import OwnerItemCard from "../components/OwnerItemCard.jsx";
+import { serverUrl } from "../App";
+import { setRestaurant } from "../redux/ownerSlice";
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const { restaurant } = useSelector((state) => state.owner);
 
@@ -54,14 +59,48 @@ const OwnerDashboard = () => {
 
   const menuItems = restaurant.menu || [];
 
-  const handleDelete = (id) => {
-    // TODO: connect to your delete API / Redux action
-    console.log("Delete item:", id);
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${serverUrl}/api/menu/${id}`, {
+        withCredentials: true,
+      });
+
+      const updatedMenu = restaurant.menu.filter((item) => item._id !== id);
+
+      dispatch(setRestaurant({ ...restaurant, menu: updatedMenu }));
+    } catch (error) {
+      console.error(
+        "Delete menu item error:",
+        error.response?.data || error.message,
+      );
+
+      alert(error.response?.data?.message || "Failed to delete item.");
+    }
   };
 
-  const handleToggleAvailability = (id) => {
-    // TODO: connect to your toggle-availability API / Redux action
-    console.log("Toggle availability:", id);
+  const handleToggleAvailability = async (id) => {
+    try {
+      const response = await axios.patch(
+        `${serverUrl}/api/menu/${id}/toggle`,
+        {},
+        { withCredentials: true },
+      );
+
+      const updatedMenu = restaurant.menu.map((item) =>
+        item._id === id
+          ? { ...item, isAvailable: response.data.data.isAvailable }
+          : item,
+      );
+
+      dispatch(setRestaurant({ ...restaurant, menu: updatedMenu }));
+    } catch (error) {
+      console.error(
+        "Toggle availability error:",
+        error.response?.data || error.message,
+      );
+
+      alert(error.response?.data?.message || "Failed to update availability.");
+    }
   };
 
   return (
