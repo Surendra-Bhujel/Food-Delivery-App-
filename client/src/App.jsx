@@ -20,6 +20,7 @@ import { useSelector } from "react-redux";
 import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
 import OwnerOrders from "./components/OwnerOrderCard";
+import DeliveryBoy from "./components/DeliveryBoy";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -161,6 +162,17 @@ const App = () => {
         element={
           userData?.role === "owner" ? (
             <OwnerOrders />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+      {/* Delivery Boy Dashboard */}
+      <Route
+        path="/delivery-dashboard"
+        element={
+          userData?.role === "rider" ? (
+            <DeliveryBoy />
           ) : (
             <Navigate to="/" replace />
           )
