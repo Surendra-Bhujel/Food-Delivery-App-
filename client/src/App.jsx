@@ -1,9 +1,12 @@
 import { Route, Routes, Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 import Register from "./pages/Register";
 import LogIn from "./pages/LogIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
+import LandingPage from "./pages/LandingPage";
+
 import CreateEditRestaurant from "./pages/CreateEditRestaurant";
 import OwnerDashboard from "./components/OwnerDashboard";
 import AddMenuItem from "./pages/AddMenuItem";
@@ -11,21 +14,33 @@ import EditItem from "./pages/EditItem";
 import RestaurantDetail from "./pages/RestaurantDetail";
 import Cart from "./pages/Cart";
 
-import useGetMe from "./hooks/useGetMe";
-import useGetCity from "./hooks/useGetCity";
-import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
-import useGetCart from "./hooks/useGetCart";
-
-import { useSelector } from "react-redux";
 import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
 import OwnerOrders from "./components/OwnerOrderCard";
 import DeliveryBoy from "./components/DeliveryBoy";
 
+import useGetMe from "./hooks/useGetMe";
+import useGetCity from "./hooks/useGetCity";
+import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
+import useGetCart from "./hooks/useGetCart";
+
 export const serverUrl = "http://localhost:5000";
 
+const LoadingScreen = () => {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#fff9f6]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff4d2d]/20 border-t-[#ff4d2d]" />
+
+        <p className="text-sm font-medium text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
-  useGetMe();
+  const { loading: authLoading } = useGetMe();
+
   useGetCity();
   useGetMyRestaurant();
   useGetCart();
@@ -33,49 +48,82 @@ const App = () => {
   const { userData } = useSelector((state) => state.user);
   const { restaurant } = useSelector((state) => state.owner);
 
+  if (authLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Routes>
-      {/* Register */}
-      <Route
-        path="/register"
-        element={!userData ? <Register /> : <Navigate to="/" replace />}
-      />
-
-      {/* Login */}
-      <Route
-        path="/login"
-        element={!userData ? <LogIn /> : <Navigate to="/" replace />}
-      />
-
-      {/* Forgot Password */}
-      <Route
-        path="/forgot-password"
-        element={!userData ? <ForgotPassword /> : <Navigate to="/" replace />}
-      />
-
-      {/* Home */}
       <Route
         path="/"
-        element={userData ? <Home /> : <Navigate to="/login" replace />}
+        element={userData ? <Home /> : <LandingPage />}
       />
 
-      {/* Restaurant Detail */}
+      <Route
+        path="/register"
+        element={
+          userData ? <Navigate to="/" replace /> : <Register />
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          userData ? <Navigate to="/" replace /> : <LogIn />
+        }
+      />
+
+      <Route
+        path="/forgot-password"
+        element={
+          userData ? <Navigate to="/" replace /> : <ForgotPassword />
+        }
+      />
+
       <Route
         path="/restaurant/:id"
         element={
-          userData ? <RestaurantDetail /> : <Navigate to="/login" replace />
+          userData ? (
+            <RestaurantDetail />
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
 
-      {/* Cart */}
       <Route
         path="/cart"
         element={
-          userData?.role === "customer" ? <Cart /> : <Navigate to="/" replace />
+          userData?.role === "customer" ? (
+            <Cart />
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
 
-      {/* Owner Dashboard */}
+      <Route
+        path="/checkout"
+        element={
+          userData?.role === "customer" ? (
+            <Checkout />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/my-orders"
+        element={
+          userData?.role === "customer" ? (
+            <MyOrders />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
       <Route
         path="/owner-dashboard"
         element={
@@ -87,7 +135,6 @@ const App = () => {
         }
       />
 
-      {/* Create Restaurant */}
       <Route
         path="/create-restaurant"
         element={
@@ -99,7 +146,6 @@ const App = () => {
         }
       />
 
-      {/* Edit Restaurant */}
       <Route
         path="/edit-restaurant/:id"
         element={
@@ -111,7 +157,6 @@ const App = () => {
         }
       />
 
-      {/* Add Menu Item */}
       <Route
         path="/add-menu-item"
         element={
@@ -123,7 +168,6 @@ const App = () => {
         }
       />
 
-      {/* Edit Menu Item */}
       <Route
         path="/edit-menu-item/:id"
         element={
@@ -134,29 +178,7 @@ const App = () => {
           )
         }
       />
-      {/* Checkout */}
-      <Route
-        path="/checkout"
-        element={
-          userData?.role === "customer" ? (
-            <Checkout />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      {/* My Orders */}
-      <Route
-        path="/my-orders"
-        element={
-          userData?.role === "customer" ? (
-            <MyOrders />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      {/* Owner Orders */}
+
       <Route
         path="/owner-orders"
         element={
@@ -167,7 +189,7 @@ const App = () => {
           )
         }
       />
-      {/* Delivery Boy Dashboard */}
+
       <Route
         path="/delivery-dashboard"
         element={
@@ -177,6 +199,11 @@ const App = () => {
             <Navigate to="/" replace />
           )
         }
+      />
+
+      <Route
+        path="*"
+        element={<Navigate to="/" replace />}
       />
     </Routes>
   );

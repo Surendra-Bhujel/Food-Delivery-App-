@@ -1,8 +1,8 @@
-import Order from '../models/Order.js';
-import Cart from '../models/Cart.js';
-import Restaurant from '../models/Restaurant.js';
-import User from '../models/User.js';
-import { io } from '../server.js';
+import Order from "../models/Order.js";
+import Cart from "../models/Cart.js";
+import Restaurant from "../models/Restaurant.js";
+import User from "../models/User.js";
+import { io } from "../server.js";
 
 // @desc    Create order from cart
 // @route   POST /api/orders/checkout
@@ -19,18 +19,18 @@ export const createOrder = async (req, res) => {
     // Get user's cart
     const cart = await Cart.findOne({ customer: req.user._id })
       .populate({
-        path: 'items.menuItem',
+        path: "items.menuItem",
         populate: {
-          path: 'restaurant',
-          select: 'name deliveryFee estimatedDeliveryTime',
+          path: "restaurant",
+          select: "name deliveryFee estimatedDeliveryTime",
         },
       })
-      .populate('restaurant', 'name deliveryFee estimatedDeliveryTime');
+      .populate("restaurant", "name deliveryFee estimatedDeliveryTime");
 
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cart is empty',
+        message: "Cart is empty",
       });
     }
 
@@ -39,7 +39,7 @@ export const createOrder = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found',
+        message: "Restaurant not found",
       });
     }
 
@@ -55,7 +55,7 @@ export const createOrder = async (req, res) => {
       name: item.menuItem.name,
       quantity: item.quantity,
       price: item.priceAtAdd,
-      note: item.note || '',
+      note: item.note || "",
     }));
 
     // Create order
@@ -68,21 +68,21 @@ export const createOrder = async (req, res) => {
       tax,
       totalAmount,
       deliveryAddress: {
-        type: 'Point',
+        type: "Point",
         coordinates: deliveryAddress.coordinates || [0, 0],
         formattedAddress: deliveryAddress.formattedAddress,
         contactNumber: deliveryAddress.contactNumber || req.user.phone,
-        instructions: deliveryInstructions || '',
+        instructions: deliveryInstructions || "",
       },
       paymentMethod,
-      paymentStatus: 'pending',
-      specialInstructions: specialInstructions || '',
-      status: 'pending',
+      paymentStatus: "pending",
+      specialInstructions: specialInstructions || "",
+      status: "pending",
       statusHistory: [
         {
-          status: 'pending',
+          status: "pending",
           timestamp: new Date(),
-          note: 'Order placed',
+          note: "Order placed",
         },
       ],
     });
@@ -91,15 +91,15 @@ export const createOrder = async (req, res) => {
     cart.items = [];
     await cart.save();
 
-    // Populate order for response  
-    await order.populate('customer', 'username email phone');
-    await order.populate('restaurant');
-    await order.populate('items.menuItem', 'name price image');
+    // Populate order for response
+    await order.populate("customer", "username email phone");
+    await order.populate("restaurant");
+    await order.populate("items.menuItem", "name price image");
 
     // Notify restaurant owner via Socket.IO
     const restaurantOwner = await User.findById(restaurant.owner);
     if (restaurantOwner) {
-      io.to(`user_${restaurantOwner._id}`).emit('order:new', {
+      io.to(`user_${restaurantOwner._id}`).emit("order:new", {
         orderId: order._id,
         restaurantId: restaurant._id,
         customerName: req.user.username,
@@ -113,10 +113,10 @@ export const createOrder = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error('Create order error:', error);
+    console.error("Create order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating order',
+      message: "Error creating order",
       error: error.message,
     });
   }
@@ -128,27 +128,29 @@ export const createOrder = async (req, res) => {
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('customer', 'username email phone')
-      .populate('restaurant', 'name logo address phone')
-      .populate('rider', 'username phone')
-      .populate('items.menuItem', 'name price image');
+      .populate("customer", "username email phone")
+      .populate("restaurant", "name logo address phone")
+      .populate("rider", "username phone")
+      .populate("items.menuItem", "name price image");
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
     // Check if user has access to this order
-    const isCustomer = order.customer._id.toString() === req.user._id.toString();
-    const isOwner = order.restaurant.owner?.toString() === req.user._id.toString();
+    const isCustomer =
+      order.customer._id.toString() === req.user._id.toString();
+    const isOwner =
+      order.restaurant.owner?.toString() === req.user._id.toString();
     const isRider = order.rider?._id?.toString() === req.user._id.toString();
 
     if (!isCustomer && !isOwner && !isRider) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to view this order',
+        message: "Not authorized to view this order",
       });
     }
 
@@ -157,10 +159,10 @@ export const getOrderById = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error('Get order error:', error);
+    console.error("Get order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching order',
+      message: "Error fetching order",
       error: error.message,
     });
   }
@@ -181,8 +183,8 @@ export const getMyOrders = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const orders = await Order.find(query)
-      .populate('restaurant', 'name logo')
-      .populate('rider', 'username')
+      .populate("restaurant", "name logo")
+      .populate("rider", "username")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -200,10 +202,10 @@ export const getMyOrders = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get my orders error:', error);
+    console.error("Get my orders error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching orders',
+      message: "Error fetching orders",
       error: error.message,
     });
   }
@@ -222,14 +224,14 @@ export const getRestaurantOrders = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({
         success: false,
-        message: 'Restaurant not found',
+        message: "Restaurant not found",
       });
     }
 
     if (restaurant.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to view orders for this restaurant',
+        message: "Not authorized to view orders for this restaurant",
       });
     }
 
@@ -241,9 +243,9 @@ export const getRestaurantOrders = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const orders = await Order.find(query)
-      .populate('customer', 'username email phone')
-      .populate('rider', 'username phone')
-      .populate('items.menuItem', 'name price image')
+      .populate("customer", "username email phone")
+      .populate("rider", "username phone")
+      .populate("items.menuItem", "name price image")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -261,10 +263,10 @@ export const getRestaurantOrders = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Get restaurant orders error:', error);
+    console.error("Get restaurant orders error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching restaurant orders',
+      message: "Error fetching restaurant orders",
       error: error.message,
     });
   }
@@ -275,11 +277,11 @@ export const getRestaurantOrders = async (req, res) => {
 // @access  Private (Owner only)
 export const confirmOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate('restaurant');
+    const order = await Order.findById(req.params.id).populate("restaurant");
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
@@ -287,30 +289,30 @@ export const confirmOrder = async (req, res) => {
     if (order.restaurant.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Not authorized to confirm this order',
+        message: "Not authorized to confirm this order",
       });
     }
 
-    if (order.status !== 'pending') {
+    if (order.status !== "pending") {
       return res.status(400).json({
         success: false,
         message: `Order is already ${order.status}`,
       });
     }
 
-    order.status = 'confirmed';
+    order.status = "confirmed";
     order.statusHistory.push({
-      status: 'confirmed',
+      status: "confirmed",
       timestamp: new Date(),
-      note: 'Order confirmed by restaurant',
+      note: "Order confirmed by restaurant",
     });
 
     await order.save();
 
     // Notify customer
-    io.to(`order_${order._id}`).emit('order:status_update', {
+    io.to(`order_${order._id}`).emit("order:status_update", {
       orderId: order._id,
-      status: 'confirmed',
+      status: "confirmed",
       timestamp: new Date().toISOString(),
     });
 
@@ -319,10 +321,10 @@ export const confirmOrder = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error('Confirm order error:', error);
+    console.error("Confirm order error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error confirming order',
+      message: "Error confirming order",
       error: error.message,
     });
   }
@@ -406,6 +408,9 @@ export const assignRider = async (req, res) => {
 
     await order.save();
 
+    rider.availability = "busy";
+    await rider.save();
+
     // Real-time notifications
     const orderUpdatePayload = {
       orderId: order._id,
@@ -460,32 +465,32 @@ export const assignRider = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status, note } = req.body;
-    const order = await Order.findById(req.params.id).populate('restaurant');    
+    const order = await Order.findById(req.params.id).populate("restaurant");
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found',
+        message: "Order not found",
       });
     }
 
     // Check authorization
     const isRider = order.rider?.toString() === req.user._id.toString();
-    const isOwner = order.restaurant.owner?.toString() === req.user._id.toString();
+    const isOwner =
+      order.restaurant.owner?.toString() === req.user._id.toString();
 
-    if (!isRider && !isOwner) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update order status',
+    if (status === "delivered" || status === "cancelled") {
+      await User.findByIdAndUpdate(req.user._id, {
+        availability: "offline",
       });
     }
 
     // Validate status transition
     const validTransitions = {
-      pending: ['confirmed', 'cancelled'],
-      confirmed: ['preparing', 'cancelled'],
-      preparing: ['out_for_delivery', 'cancelled'],
-      assigned: ['out_for_delivery', 'cancelled'],
-      out_for_delivery: ['delivered', 'cancelled'],
+      pending: ["confirmed", "cancelled"],
+      confirmed: ["preparing", "cancelled"],
+      preparing: ["out_for_delivery", "cancelled"],
+      assigned: ["out_for_delivery", "cancelled"],
+      out_for_delivery: ["delivered", "cancelled"],
     };
 
     if (!validTransitions[order.status]?.includes(status)) {
@@ -496,15 +501,19 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     // If rider is updating, only allow out_for_delivery and delivered
-    if (isRider && !['out_for_delivery', 'delivered', 'cancelled'].includes(status)) {
+    if (
+      isRider &&
+      !["out_for_delivery", "delivered", "cancelled"].includes(status)
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Rider can only update to out_for_delivery, delivered, or cancelled',
+        message:
+          "Rider can only update to out_for_delivery, delivered, or cancelled",
       });
     }
 
     // If delivering, update delivery time
-    if (status === 'delivered') {
+    if (status === "delivered") {
       order.actualDeliveryTime = new Date();
     }
 
@@ -518,12 +527,12 @@ export const updateOrderStatus = async (req, res) => {
     await order.save();
 
     // Populate for response
-    await order.populate('customer', 'username email phone');
-    await order.populate('rider', 'username phone');
-    await order.populate('restaurant', 'name');
+    await order.populate("customer", "username email phone");
+    await order.populate("rider", "username phone");
+    await order.populate("restaurant", "name");
 
     // Broadcast to all clients in the order room
-    io.to(`order_${order._id}`).emit('order:status_update', {
+    io.to(`order_${order._id}`).emit("order:status_update", {
       orderId: order._id,
       status,
       note,
@@ -536,10 +545,10 @@ export const updateOrderStatus = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error('Update order status error:', error);
+    console.error("Update order status error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating order status',
+      message: "Error updating order status",
       error: error.message,
     });
   }
@@ -551,20 +560,20 @@ export const updateOrderStatus = async (req, res) => {
 export const getAvailableRiders = async (req, res) => {
   try {
     const riders = await User.find({
-      role: 'rider',
-      availability: 'online',
+      role: "rider",
+      availability: "online",
       isActive: true,
-    }).select('username email phone availability createdAt');
+    }).select("username email phone availability createdAt");
 
     res.status(200).json({
       success: true,
       data: riders,
     });
   } catch (error) {
-    console.error('Get available riders error:', error);
+    console.error("Get available riders error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching available riders',
+      message: "Error fetching available riders",
       error: error.message,
     });
   }

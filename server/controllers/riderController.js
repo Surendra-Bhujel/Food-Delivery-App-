@@ -235,3 +235,37 @@ export const getLatestLocation = async (req, res) => {
     });
   }
 };
+
+
+// @desc    Get rider availability
+// @route   GET /api/rider/availability
+// @access  Private (Rider only)
+export const getAvailability = async (req, res) => {
+  try {
+    const rider = await User.findById(req.user._id).select(
+      "availability"
+    );
+
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        availability: rider.availability,
+      },
+    });
+  } catch (error) {
+    console.error("Get availability error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error fetching availability",
+      error: error.message,
+    });
+  }
+};

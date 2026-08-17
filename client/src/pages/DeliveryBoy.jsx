@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { FiPackage, FiPhone, FiMapPin, FiNavigation } from "react-icons/fi";
+import {
+  FiPackage,
+  FiPhone,
+  FiMapPin,
+  FiNavigation,
+} from "react-icons/fi";
 import { MdAccessTime } from "react-icons/md";
 import axios from "axios";
 
@@ -21,21 +26,22 @@ const DeliveryBoy = () => {
   const [trackingOrderId, setTrackingOrderId] = useState(null);
 
   const watchIdRef = useRef(null);
+  const pollingRef = useRef(null);
 
-  // Initialize online/offline state from the actual saved value on the user
-  useEffect(() => {
-    if (userData?.availability) {
-      setIsOnline(userData.availability === "online");
-    }
-  }, [userData]);
-  const fetchDeliveries = async () => {
+  const fetchDeliveries = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
+
       setError(false);
 
-      const response = await axios.get(`${serverUrl}/api/rider/my-deliveries`, {
-        withCredentials: true,
-      });
+      const response = await axios.get(
+        `${serverUrl}/api/rider/my-deliveries`,
+        {
+          withCredentials: true,
+        },
+      );
 
       setDeliveries(response.data.data || []);
     } catch (err) {
@@ -46,13 +52,62 @@ const DeliveryBoy = () => {
 
       setError(true);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const fetchAvailability = async () => {
+    try {
+      const response = await axios.get(
+        `${serverUrl}/api/rider/availability`,
+        {
+          withCredentials: true,
+        },
+      );
+
+      const availability = response.data?.data?.availability;
+
+      setIsOnline(availability === "online");
+    } catch (err) {
+      console.error(
+        "Fetch availability error:",
+        err.response?.data || err.message,
+      );
+
+      if (userData?.availability) {
+        setIsOnline(userData.availability === "online");
+      }
     }
   };
 
   useEffect(() => {
-    fetchDeliveries();
+    fetchAvailability();
+    fetchDeliveries(true);
   }, []);
+
+  useEffect(() => {
+    if (!isOnline) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+
+      return;
+    }
+
+    pollingRef.current = setInterval(() => {
+      fetchDeliveries(false);
+    }, 5000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [isOnline]);
 
   const handleToggleAvailability = async () => {
     try {
@@ -61,52 +116,40 @@ const DeliveryBoy = () => {
       const response = await axios.patch(
         `${serverUrl}/api/rider/availability`,
         {},
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
 
-      setIsOnline(response.data.data.availability === "online");
+      const availability = response.data?.data?.availability;
+
+      setIsOnline(availability === "online");
+
+      await fetchDeliveries(false);
     } catch (err) {
       console.error(
         "Toggle availability error:",
         err.response?.data || err.message,
       );
 
-      alert(err.response?.data?.message || "Failed to update availability.");
+      alert(
+        err.response?.data?.message ||
+          "Failed to update availability.",
+      );
     } finally {
       setTogglingAvailability(false);
     }
   };
 
-  const handleUpdateStatus = async (orderId, status) => {
-    try {
-      setUpdatingOrderId(orderId);
-
-      await axios.put(
-        `${serverUrl}/api/orders/${orderId}/status`,
-        { status },
-        { withCredentials: true },
-      );
-
-      if (status === "delivered") {
-        stopTracking();
-      }
-
-      await fetchDeliveries();
-    } catch (err) {
-      console.error(
-        "Update order status error:",
-        err.response?.data || err.message,
-      );
-
-      alert(err.response?.data?.message || "Failed to update order status.");
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  };
-
   const sendLocationUpdate = async (orderId, position) => {
     try {
-      const { latitude, longitude, accuracy, speed, heading } = position.coords;
+      const {
+        latitude,
+        longitude,
+        accuracy,
+        speed,
+        heading,
+      } = position.coords;
 
       await axios.post(
         `${serverUrl}/api/rider/location`,
@@ -114,11 +157,22 @@ const DeliveryBoy = () => {
           orderId,
           latitude,
           longitude,
-          accuracy: accuracy || undefined,
-          speed: speed || undefined,
-          heading: heading || undefined,
+          accuracy:
+            accuracy !== null && accuracy !== undefined
+              ? accuracy
+              : undefined,
+          speed:
+            speed !== null && speed !== undefined
+              ? speed
+              : undefined,
+          heading:
+            heading !== null && heading !== undefined
+              ? heading
+              : undefined,
         },
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
     } catch (err) {
       console.error(
@@ -126,27 +180,6 @@ const DeliveryBoy = () => {
         err.response?.data || err.message,
       );
     }
-  };
-
-  const startTracking = (orderId) => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
-      return;
-    }
-
-    stopTracking();
-
-    setTrackingOrderId(orderId);
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => sendLocationUpdate(orderId, position),
-      (err) => console.error("Geolocation watch error:", err.message),
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 15000,
-      },
-    );
   };
 
   const stopTracking = () => {
@@ -158,8 +191,156 @@ const DeliveryBoy = () => {
     setTrackingOrderId(null);
   };
 
+  const startTracking = (orderId) => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return false;
+    }
+
+    stopTracking();
+
+    setTrackingOrderId(orderId);
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        sendLocationUpdate(orderId, position);
+      },
+      (err) => {
+        console.error(
+          "Geolocation watch error:",
+          err.message,
+        );
+
+        if (err.code === 1) {
+          alert(
+            "Location permission was denied. Please allow location access to share your delivery location.",
+          );
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000,
+      },
+    );
+
+    return true;
+  };
+
+  const handleStartDelivery = async (orderId) => {
+    try {
+      setUpdatingOrderId(orderId);
+
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve(),
+          (err) => {
+            if (err.code === 1) {
+              reject(
+                new Error(
+                  "Please allow location access before starting the delivery.",
+                ),
+              );
+            } else {
+              reject(
+                new Error(
+                  "Unable to get your current location.",
+                ),
+              );
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+          },
+        );
+      });
+
+      await axios.put(
+        `${serverUrl}/api/orders/${orderId}/status`,
+        {
+          status: "out_for_delivery",
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      startTracking(orderId);
+
+      await fetchDeliveries(false);
+    } catch (err) {
+      console.error(
+        "Start delivery error:",
+        err.response?.data || err.message,
+      );
+
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to start delivery.",
+      );
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const handleMarkDelivered = async (orderId) => {
+    try {
+      setUpdatingOrderId(orderId);
+
+      await axios.put(
+        `${serverUrl}/api/orders/${orderId}/status`,
+        {
+          status: "delivered",
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      if (trackingOrderId === orderId) {
+        stopTracking();
+      }
+
+      setDeliveries((previousDeliveries) =>
+        previousDeliveries.filter(
+          (delivery) => delivery._id !== orderId,
+        ),
+      );
+
+      await fetchDeliveries(false);
+    } catch (err) {
+      console.error(
+        "Mark delivered error:",
+        err.response?.data || err.message,
+      );
+
+      alert(
+        err.response?.data?.message ||
+          "Failed to mark order as delivered.",
+      );
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
   useEffect(() => {
-    return () => stopTracking();
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -167,7 +348,7 @@ const DeliveryBoy = () => {
       <Nav />
 
       <main className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[100px] sm:px-6">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Hi, {userData?.username || "Rider"}
@@ -181,7 +362,7 @@ const DeliveryBoy = () => {
           <button
             onClick={handleToggleAvailability}
             disabled={togglingAvailability}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`flex w-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
               isOnline
                 ? "bg-green-100 text-green-800 hover:bg-green-200"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -189,7 +370,9 @@ const DeliveryBoy = () => {
           >
             <span
               className={`h-2.5 w-2.5 rounded-full ${
-                isOnline ? "bg-green-600" : "bg-gray-500"
+                isOnline
+                  ? "bg-green-600"
+                  : "bg-gray-500"
               }`}
             />
 
@@ -203,13 +386,22 @@ const DeliveryBoy = () => {
 
         {loading ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-md">
-            <p className="text-gray-700">Loading deliveries...</p>
+            <p className="text-gray-700">
+              Loading deliveries...
+            </p>
           </div>
         ) : error ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-md">
             <p className="text-gray-700">
-              Something went wrong loading deliveries. Please try again.
+              Something went wrong loading deliveries.
             </p>
+
+            <button
+              onClick={() => fetchDeliveries(true)}
+              className="mt-4 rounded-lg bg-[#ff4d2d] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e63e1f]"
+            >
+              Try Again
+            </button>
           </div>
         ) : deliveries.length === 0 ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-md">
@@ -221,30 +413,34 @@ const DeliveryBoy = () => {
 
             <p className="mt-2 text-sm text-gray-700">
               {isOnline
-                ? "You'll see new deliveries here once assigned."
-                : "Go online to start receiving deliveries."}
+                ? "You are online. New orders assigned to you will appear here."
+                : "Go online to become available for delivery assignments."}
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {deliveries.map((order) => {
-              const isTracking = trackingOrderId === order._id;
+              const isTracking =
+                trackingOrderId === order._id;
 
-              const isUpdating = updatingOrderId === order._id;
+              const isUpdating =
+                updatingOrderId === order._id;
 
-              const orderDate = new Date(order.createdAt).toLocaleDateString(
-                "en-US",
-                {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              );
+              const orderDate = new Date(
+                order.createdAt,
+              ).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
 
-              const customerPhone = order.customer?.phone || "";
+              const customerPhone =
+                order.customer?.phone || "";
 
-              const phoneHref = customerPhone ? "tel:" + customerPhone : "";
+              const phoneHref = customerPhone
+                ? `tel:${customerPhone}`
+                : "";
 
               return (
                 <div
@@ -258,29 +454,38 @@ const DeliveryBoy = () => {
                           order.restaurant?.logo ||
                           "https://via.placeholder.com/60x60?text=R"
                         }
-                        alt={order.restaurant?.name}
+                        alt={
+                          order.restaurant?.name ||
+                          "Restaurant"
+                        }
                         className="h-12 w-12 rounded-lg object-cover"
                       />
 
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {order.restaurant?.name || "Restaurant"}
+                          {order.restaurant?.name ||
+                            "Restaurant"}
                         </p>
 
                         <p className="text-xs font-medium text-gray-600">
-                          Order #{order._id.slice(-6).toUpperCase()}
+                          Order #
+                          {order._id
+                            .slice(-6)
+                            .toUpperCase()}
                         </p>
                       </div>
                     </div>
 
                     <span
                       className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        order.status === "out_for_delivery"
+                        order.status ===
+                        "out_for_delivery"
                           ? "bg-purple-100 text-purple-800"
                           : "bg-blue-100 text-blue-800"
                       }`}
                     >
-                      {order.status === "out_for_delivery"
+                      {order.status ===
+                      "out_for_delivery"
                         ? "Out for Delivery"
                         : "Assigned"}
                     </span>
@@ -290,10 +495,13 @@ const DeliveryBoy = () => {
                     <FiMapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
 
                     <div>
-                      <p className="text-gray-500">Pickup from</p>
+                      <p className="text-gray-500">
+                        Pickup from
+                      </p>
 
                       <p>
-                        {order.restaurant?.address?.formattedAddress ||
+                        {order.restaurant?.address
+                          ?.formattedAddress ||
                           "Restaurant address"}
                       </p>
                     </div>
@@ -303,20 +511,34 @@ const DeliveryBoy = () => {
                     <FiNavigation className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
 
                     <div>
-                      <p className="text-gray-500">Deliver to</p>
+                      <p className="text-gray-500">
+                        Deliver to
+                      </p>
 
-                      <p>{order.deliveryAddress?.formattedAddress}</p>
+                      <p>
+                        {order.deliveryAddress
+                          ?.formattedAddress ||
+                          "Delivery address not available"}
+                      </p>
 
-                      {order.deliveryAddress?.instructions && (
+                      {order.deliveryAddress
+                        ?.instructions && (
                         <p className="mt-1 italic text-gray-600">
-                          Note: {order.deliveryAddress.instructions}
+                          Note:{" "}
+                          {
+                            order.deliveryAddress
+                              .instructions
+                          }
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between rounded-lg bg-gray-50 p-3 text-xs font-medium text-gray-700">
-                    <span>{order.customer?.username || "Customer"}</span>
+                    <span>
+                      {order.customer?.username ||
+                        "Customer"}
+                    </span>
 
                     {phoneHref ? (
                       <a
@@ -345,27 +567,35 @@ const DeliveryBoy = () => {
                   <div className="mt-4 flex gap-2">
                     {order.status === "assigned" && (
                       <button
-                        onClick={() => {
-                          startTracking(order._id);
-                          handleUpdateStatus(order._id, "out_for_delivery");
-                        }}
+                        onClick={() =>
+                          handleStartDelivery(
+                            order._id,
+                          )
+                        }
                         disabled={isUpdating}
                         className="flex-1 rounded-lg bg-[#ff4d2d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#e63e1f] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isUpdating ? "Starting..." : "Start Delivery"}
+                        {isUpdating
+                          ? "Starting..."
+                          : "Start Delivery"}
                       </button>
                     )}
 
-                    {order.status === "out_for_delivery" && (
+                    {order.status ===
+                      "out_for_delivery" && (
                       <>
                         <button
                           onClick={() =>
-                            handleUpdateStatus(order._id, "delivered")
+                            handleMarkDelivered(
+                              order._id,
+                            )
                           }
                           disabled={isUpdating}
                           className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isUpdating ? "Updating..." : "Mark Delivered"}
+                          {isUpdating
+                            ? "Updating..."
+                            : "Mark Delivered"}
                         </button>
 
                         {isTracking && (
