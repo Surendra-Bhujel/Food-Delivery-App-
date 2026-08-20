@@ -9,7 +9,7 @@ import axios from "axios";
 import Nav from "../components/Nav.jsx";
 import FoodCard from "../components/FoodCard.jsx";
 import { serverUrl } from "../App";
-import { addItemToCart, clearConflict } from "../redux/cartSlice";
+import { addToCart } from "../redux/cartSlice";
 
 const RestaurantDetail = () => {
   const navigate = useNavigate();
@@ -44,26 +44,38 @@ const RestaurantDetail = () => {
   }, [id]);
 
   const handleAddToCart = async (item, quantity) => {
-    const result = await dispatch(
-      addItemToCart({ menuItemId: item._id, quantity }),
-    );
+    try {
+      await dispatch(addToCart({ menuItemId: item._id, quantity })).unwrap();
+    } catch (error) {
+      console.error("Failed to add item to cart:", error);
 
-    if (addItemToCart.rejected.match(result) && result.payload?.conflict) {
-      const confirmed = window.confirm(
-        `${result.payload.message}\n\nThis will remove existing items from your cart.`,
-      );
+      if (error?.conflict) {
+        const confirmed = window.confirm(
+          `${error.message}\n\nThis will remove existing items from your cart.`,
+        );
 
-      if (confirmed) {
-        await dispatch(
-          addItemToCart({
-            menuItemId: result.payload.menuItemId,
-            quantity: result.payload.quantity,
-            replaceCart: true,
-          }),
+        if (confirmed) {
+          try {
+            await dispatch(
+              addToCart({
+                menuItemId: item._id,
+                quantity: quantity,
+                replaceCart: true,
+              }),
+            ).unwrap();
+          } catch (retryError) {
+            console.error(
+              "Failed to add item after conflict resolution:",
+              retryError,
+            );
+            alert("Could not add item to cart. Please try again.");
+          }
+        }
+      } else {
+        alert(
+          error?.message || "Could not add item to cart. Please try again.",
         );
       }
-
-      dispatch(clearConflict());
     }
   };
 

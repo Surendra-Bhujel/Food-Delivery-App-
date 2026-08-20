@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { serverUrl } from "../App";
 import { useDispatch } from "react-redux";
 import { setUserData } from "../redux/userSlice";
+import { serverUrl } from "../App";
 
 const useGetMe = () => {
   const dispatch = useDispatch();
 
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -16,27 +18,43 @@ const useGetMe = () => {
       try {
         const response = await axios.get(`${serverUrl}/api/auth/me`, {
           withCredentials: true,
-          timeout: 5000,
+          timeout: 10000,
         });
 
         if (!mounted) return;
 
-        const user = response.data?.user || response.data?.data || null;
+        const loggedInUser = response.data?.user || null;
 
-        dispatch(setUserData(user));
+        if (loggedInUser) {
+          dispatch(setUserData(loggedInUser));
+          setUser(loggedInUser);
+        } else {
+          dispatch(setUserData(null));
+          setUser(null);
+        }
+
+        setErr("");
       } catch (error) {
         if (!mounted) return;
 
-        if (error.code === "ECONNABORTED") {
-          console.log("Authentication request timed out.");
+        console.log(
+          "Get Me Error:",
+          error.response?.status,
+          error.response?.data || error.message,
+        );
+
+        // 401 simply means the user is not logged in.
+        // It should NOT keep the application loading.
+        if (error.response?.status === 401) {
+          setErr("");
         } else {
-          console.log(
-            "No authenticated user:",
-            error.response?.data?.message || error.message,
+          setErr(
+            error.response?.data?.message || "Unable to check authentication",
           );
         }
 
         dispatch(setUserData(null));
+        setUser(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -51,7 +69,11 @@ const useGetMe = () => {
     };
   }, [dispatch]);
 
-  return { loading };
+  return {
+    user,
+    loading,
+    err,
+  };
 };
 
 export default useGetMe;

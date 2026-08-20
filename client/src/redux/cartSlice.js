@@ -1,18 +1,7 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axios from "axios";
-
 import { serverUrl } from "../App";
 
-const initialState = {
-  items: [],
-  restaurant: null,
-  totalAmount: 0,
-  loading: false,
-  error: null,
-  conflict: null,
-};
-
-// Fetch current cart
 export const fetchCart = createAsyncThunk(
   "cart/fetchCart",
   async (_, { rejectWithValue }) => {
@@ -20,6 +9,7 @@ export const fetchCart = createAsyncThunk(
       const response = await axios.get(`${serverUrl}/api/cart`, {
         withCredentials: true,
       });
+
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -29,74 +19,72 @@ export const fetchCart = createAsyncThunk(
   },
 );
 
-// Add item to cart
-export const addItemToCart = createAsyncThunk(
-  "cart/addItemToCart",
-  async ({ menuItemId, quantity, note, replaceCart }, { rejectWithValue }) => {
+export const addToCart = createAsyncThunk(
+  "cart/addToCart",
+  async (cartData, { rejectWithValue }) => {
     try {
       const response = await axios.post(
         `${serverUrl}/api/cart/items`,
-        { menuItemId, quantity, note, replaceCart },
-        { withCredentials: true },
+        cartData,
+        {
+          withCredentials: true,
+        },
       );
+
       return response.data.data;
     } catch (error) {
-      if (error.response?.status === 409) {
-        return rejectWithValue({
-          conflict: true,
-          message: error.response.data.message,
-          menuItemId,
-          quantity,
-          note,
-        });
-      }
-
       return rejectWithValue({
-        conflict: false,
+        status: error.response?.status,
         message: error.response?.data?.message || "Failed to add item to cart",
+        conflict: error.response?.data?.conflict || false,
+        menuItemId: cartData.menuItemId,
+        quantity: cartData.quantity,
       });
     }
   },
 );
 
-// Update item quantity
-export const updateCartItemQuantity = createAsyncThunk(
-  "cart/updateCartItemQuantity",
+export const updateCartItem = createAsyncThunk(
+  "cart/updateCartItem",
   async ({ itemId, quantity }, { rejectWithValue }) => {
     try {
       const response = await axios.put(
         `${serverUrl}/api/cart/items/${itemId}`,
         { quantity },
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
+
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to update item",
+        error.response?.data?.message || "Failed to update cart item",
       );
     }
   },
 );
 
-// Remove item from cart
 export const removeCartItem = createAsyncThunk(
   "cart/removeCartItem",
   async (itemId, { rejectWithValue }) => {
     try {
       const response = await axios.delete(
         `${serverUrl}/api/cart/items/${itemId}`,
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
+
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to remove item",
+        error.response?.data?.message || "Failed to remove cart item",
       );
     }
   },
 );
 
-// Clear entire cart
 export const clearCart = createAsyncThunk(
   "cart/clearCart",
   async (_, { rejectWithValue }) => {
@@ -104,6 +92,7 @@ export const clearCart = createAsyncThunk(
       const response = await axios.delete(`${serverUrl}/api/cart`, {
         withCredentials: true,
       });
+
       return response.data.data;
     } catch (error) {
       return rejectWithValue(
@@ -113,16 +102,27 @@ export const clearCart = createAsyncThunk(
   },
 );
 
+const initialState = {
+  cart: {
+    items: [],
+    totalAmount: 0,
+    restaurant: null,
+  },
+  loading: false,
+  error: null,
+  conflict: null,
+};
+
 const cartSlice = createSlice({
   name: "cart",
-
   initialState,
-
   reducers: {
-    resetCartState: (state) => {
-      state.items = [];
-      state.restaurant = null;
-      state.totalAmount = 0;
+    clearCartState: (state) => {
+      state.cart = {
+        items: [],
+        totalAmount: 0,
+        restaurant: null,
+      };
       state.error = null;
       state.conflict = null;
     },
@@ -131,38 +131,35 @@ const cartSlice = createSlice({
       state.conflict = null;
     },
   },
-
   extraReducers: (builder) => {
-    const setCartData = (state, payload) => {
-      state.items = payload.items || [];
-      state.restaurant = payload.restaurant || null;
-      state.totalAmount = payload.totalAmount || 0;
-      state.loading = false;
-      state.error = null;
-    };
-
     builder
-      // Fetch
       .addCase(fetchCart.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchCart.fulfilled, (state, action) => {
-        setCartData(state, action.payload);
+        state.loading = false;
+        state.cart = action.payload || {
+          items: [],
+          totalAmount: 0,
+          restaurant: null,
+        };
       })
       .addCase(fetchCart.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || "Failed to fetch cart";
       })
 
-      // Add
-      .addCase(addItemToCart.pending, (state) => {
+      .addCase(addToCart.pending, (state) => {
         state.loading = true;
+        state.error = null;
         state.conflict = null;
       })
-      .addCase(addItemToCart.fulfilled, (state, action) => {
-        setCartData(state, action.payload);
+      .addCase(addToCart.fulfilled, (state, action) => {
+        state.loading = false;
+        state.cart = action.payload;
       })
-      .addCase(addItemToCart.rejected, (state, action) => {
+      .addCase(addToCart.rejected, (state, action) => {
         state.loading = false;
 
         if (action.payload?.conflict) {
@@ -172,32 +169,51 @@ const cartSlice = createSlice({
         }
       })
 
-      // Update quantity
-      .addCase(updateCartItemQuantity.fulfilled, (state, action) => {
-        setCartData(state, action.payload);
+      .addCase(updateCartItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(updateCartItemQuantity.rejected, (state, action) => {
+      .addCase(updateCartItem.fulfilled, (state, action) => {
+        state.loading = false;
+        state.cart = action.payload;
+      })
+      .addCase(updateCartItem.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       })
 
-      // Remove item
+      .addCase(removeCartItem.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(removeCartItem.fulfilled, (state, action) => {
-        setCartData(state, action.payload);
+        state.loading = false;
+        state.cart = action.payload;
       })
       .addCase(removeCartItem.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       })
 
-      // Clear cart
+      .addCase(clearCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(clearCart.fulfilled, (state, action) => {
-        setCartData(state, action.payload);
+        state.loading = false;
+        state.cart = action.payload || {
+          items: [],
+          totalAmount: 0,
+          restaurant: null,
+        };
       })
       .addCase(clearCart.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const { resetCartState, clearConflict } = cartSlice.actions;
+export const { clearCartState, clearConflict } = cartSlice.actions;
 
 export default cartSlice.reducer;

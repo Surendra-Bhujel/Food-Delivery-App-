@@ -20,7 +20,8 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
   const { restaurant } = useSelector((state) => state.owner);
 
-  const { items: cartItems } = useSelector((state) => state.cart);
+  // Correct selector based on your cart slice structure
+  const { items: cartItems } = useSelector((state) => state.cart.cart);
 
   const dispatch = useDispatch();
 

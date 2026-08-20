@@ -10,7 +10,7 @@ import CategoryCard from "../components/CategoryCard.jsx";
 import FoodCard from "../components/FoodCard.jsx";
 import { serverUrl } from "../App";
 import { categories } from "../category";
-import { addItemToCart, clearConflict } from "../redux/cartSlice";
+import { addToCart, clearConflict } from "../redux/cartSlice";
 
 const UserDashboard = () => {
   const navigate = useNavigate();
@@ -118,25 +118,35 @@ const UserDashboard = () => {
 
   const handleAddToCart = async (item, quantity) => {
     const result = await dispatch(
-      addItemToCart({ menuItemId: item._id, quantity }),
+      addToCart({ menuItemId: item._id, quantity }),
     );
 
-    if (addItemToCart.rejected.match(result) && result.payload?.conflict) {
+    if (addToCart.rejected.match(result) && result.payload?.conflict) {
       const confirmed = window.confirm(
         `${result.payload.message}\n\nThis will remove existing items from your cart.`,
       );
 
       if (confirmed) {
         await dispatch(
-          addItemToCart({
-            menuItemId: result.payload.menuItemId,
-            quantity: result.payload.quantity,
+          addToCart({
+            menuItemId: result.payload.menuItemId || item._id,
+            quantity: result.payload.quantity || quantity,
             replaceCart: true,
           }),
         );
       }
 
       dispatch(clearConflict());
+    } else if (addToCart.rejected.match(result)) {
+      // Non-conflict errors
+      console.error(
+        "Failed to add item to cart:",
+        result.payload || result.error,
+      );
+      alert(
+        result.payload?.message ||
+          "Could not add item to cart. Please try again.",
+      );
     }
   };
 

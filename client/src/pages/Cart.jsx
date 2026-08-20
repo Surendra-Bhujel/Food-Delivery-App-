@@ -6,11 +6,7 @@ import { FiShoppingCart } from "react-icons/fi";
 
 import Nav from "../components/Nav.jsx";
 import CartItemCard from "../components/CartItemCard.jsx";
-import {
-  updateCartItemQuantity,
-  removeCartItem,
-  clearCart,
-} from "../redux/cartSlice";
+import { updateCartItem, removeCartItem, clearCart } from "../redux/cartSlice";
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -22,7 +18,7 @@ const Cart = () => {
 
   const handleIncrease = async (item) => {
     await dispatch(
-      updateCartItemQuantity({
+      updateCartItem({
         itemId: item._id,
         quantity: item.quantity + 1,
       }),
@@ -36,7 +32,7 @@ const Cart = () => {
     }
 
     await dispatch(
-      updateCartItemQuantity({
+      updateCartItem({
         itemId: item._id,
         quantity: item.quantity - 1,
       }),
