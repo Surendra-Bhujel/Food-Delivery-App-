@@ -5,7 +5,6 @@ const userSlice = createSlice({
 
   initialState: {
     userData: null,
-    authLoading: true,
 
     currentCity: "",
     currentState: "",
@@ -18,10 +17,6 @@ const userSlice = createSlice({
   reducers: {
     setUserData: (state, action) => {
       state.userData = action.payload;
-    },
-
-    setAuthLoading: (state, action) => {
-      state.authLoading = action.payload;
     },
 
     setCurrentCity: (state, action) => {
@@ -41,18 +36,14 @@ const userSlice = createSlice({
       state.currentState = action.payload.state || "";
       state.currentAddress = action.payload.address || "";
 
-      state.currentLatitude =
-        action.payload.latitude ?? null;
-
-      state.currentLongitude =
-        action.payload.longitude ?? null;
+      state.currentLatitude = action.payload.latitude ?? null;
+      state.currentLongitude = action.payload.longitude ?? null;
     },
   },
 });
 
 export const {
   setUserData,
-  setAuthLoading,
   setCurrentCity,
   setCurrentState,
   setCurrentAddress,

@@ -1,50 +1,57 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { serverUrl } from "../App";
 import { useDispatch } from "react-redux";
-import { setUserData, setAuthLoading } from "../redux/userSlice";
+import { setUserData } from "../redux/userSlice";
 
 const useGetMe = () => {
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      dispatch(setAuthLoading(true));
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchUser = async () => {
       try {
         const response = await axios.get(`${serverUrl}/api/auth/me`, {
           withCredentials: true,
+          timeout: 5000,
         });
 
-        console.log("ME RESPONSE:", response.data);
+        if (!mounted) return;
 
-        const user =
-          response.data?.user ||
-          response.data?.data ||
-          null;
+        const user = response.data?.user || response.data?.data || null;
 
-        if (user) {
-          console.log("LOGGED IN USER:", user);
-          console.log("USER ROLE:", user.role);
-
-          dispatch(setUserData(user));
-        } else {
-          dispatch(setUserData(null));
-        }
+        dispatch(setUserData(user));
       } catch (error) {
-        console.log(
-          "Get Me Error:",
-          error.response?.data || error.message
-        );
+        if (!mounted) return;
+
+        if (error.code === "ECONNABORTED") {
+          console.log("Authentication request timed out.");
+        } else {
+          console.log(
+            "No authenticated user:",
+            error.response?.data?.message || error.message,
+          );
+        }
 
         dispatch(setUserData(null));
       } finally {
-        dispatch(setAuthLoading(false));
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchUser();
+
+    return () => {
+      mounted = false;
+    };
   }, [dispatch]);
+
+  return { loading };
 };
 
 export default useGetMe;

@@ -53,54 +53,44 @@ const LogIn = () => {
       return;
     }
 
-    try {
-      setErr("");
-      setLoading(true);
+    setErr("");
+    setLoading(true);
 
+    try {
       const response = await axios.post(
         `${serverUrl}/api/auth/login`,
-        {
-          email: formData.email.trim(),
-          password: formData.password,
-        },
+        formData,
         {
           withCredentials: true,
+          timeout: 10000,
         },
       );
 
-      console.log("Login response:", response.data);
+      console.log("LOGIN RESPONSE:", response.data);
 
-      const user = response.data.user;
+      const loggedInUser = response.data?.user || response.data?.data || null;
 
-      if (!user) {
-        throw new Error("User information was not returned by the server.");
+      if (!loggedInUser) {
+        throw new Error("User data was not returned by the server");
       }
 
-      if (!user.role) {
-        throw new Error("User role was not returned by the server.");
-      }
-
-      dispatch(setUserData(user));
+      dispatch(setUserData(loggedInUser));
 
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Login error:", error.response?.data || error.message);
 
-      setErr(
-        error.response?.data?.message ||
-          error.message ||
-          "Login failed. Please try again.",
-      );
+      setErr(error.response?.data?.message || error.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleAuth = async () => {
-    try {
-      setErr("");
-      setLoading(true);
+    setErr("");
+    setLoading(true);
 
+    try {
       const provider = new GoogleAuthProvider();
 
       const result = await signInWithPopup(auth, provider);
@@ -113,22 +103,19 @@ const LogIn = () => {
         },
         {
           withCredentials: true,
+          timeout: 10000,
         },
       );
 
-      console.log("Google login response:", response.data);
+      console.log("GOOGLE LOGIN RESPONSE:", response.data);
 
-      const user = response.data.user;
+      const loggedInUser = response.data?.user || response.data?.data || null;
 
-      if (!user) {
-        throw new Error("User information was not returned by the server.");
+      if (!loggedInUser) {
+        throw new Error("User data was not returned by the server");
       }
 
-      if (!user.role) {
-        throw new Error("User role was not returned by the server.");
-      }
-
-      dispatch(setUserData(user));
+      dispatch(setUserData(loggedInUser));
 
       navigate("/", { replace: true });
     } catch (error) {
@@ -140,7 +127,7 @@ const LogIn = () => {
       setErr(
         error.response?.data?.message ||
           error.message ||
-          "Google Sign-In failed.",
+          "Google Sign-In failed",
       );
     } finally {
       setLoading(false);
@@ -177,8 +164,10 @@ const LogIn = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full rounded-lg px-3 py-2 text-gray-700 focus:outline-none"
-              style={{ border: `1px solid ${borderColor}` }}
+              className="w-full rounded-lg px-3 py-2 outline-none"
+              style={{
+                border: `1px solid ${borderColor}`,
+              }}
             />
           </div>
 
@@ -195,8 +184,10 @@ const LogIn = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full rounded-lg px-3 py-2 pr-10 text-gray-700 focus:outline-none"
-                style={{ border: `1px solid ${borderColor}` }}
+                className="w-full rounded-lg px-3 py-2 outline-none"
+                style={{
+                  border: `1px solid ${borderColor}`,
+                }}
               />
 
               <button

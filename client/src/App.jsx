@@ -13,10 +13,10 @@ import AddMenuItem from "./pages/AddMenuItem";
 import EditItem from "./pages/EditItem";
 import RestaurantDetail from "./pages/RestaurantDetail";
 import Cart from "./pages/Cart";
-
 import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
-import OwnerOrders from "./components/OwnerOrderCard";
+
+import OwnerOrders from "./components/OwnerOrders";
 import DeliveryBoy from "./components/DeliveryBoy";
 
 import useGetMe from "./hooks/useGetMe";
@@ -28,11 +28,13 @@ export const serverUrl = "http://localhost:5000";
 
 const LoadingScreen = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fff9f6]">
+    <div className="min-h-screen bg-[#fff9f6] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ff4d2d]/20 border-t-[#ff4d2d]" />
 
-        <p className="text-sm font-medium text-gray-600">Loading...</p>
+        <p className="text-sm font-medium text-gray-600">
+          Checking your session...
+        </p>
       </div>
     </div>
   );
@@ -54,51 +56,34 @@ const App = () => {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={userData ? <Home /> : <LandingPage />}
-      />
+      <Route path="/" element={userData ? <Home /> : <LandingPage />} />
 
       <Route
         path="/register"
-        element={
-          userData ? <Navigate to="/" replace /> : <Register />
-        }
+        element={userData ? <Navigate to="/" replace /> : <Register />}
       />
 
       <Route
         path="/login"
-        element={
-          userData ? <Navigate to="/" replace /> : <LogIn />
-        }
+        element={userData ? <Navigate to="/" replace /> : <LogIn />}
       />
 
       <Route
         path="/forgot-password"
-        element={
-          userData ? <Navigate to="/" replace /> : <ForgotPassword />
-        }
+        element={userData ? <Navigate to="/" replace /> : <ForgotPassword />}
       />
 
       <Route
         path="/restaurant/:id"
         element={
-          userData ? (
-            <RestaurantDetail />
-          ) : (
-            <Navigate to="/login" replace />
-          )
+          userData ? <RestaurantDetail /> : <Navigate to="/login" replace />
         }
       />
 
       <Route
         path="/cart"
         element={
-          userData?.role === "customer" ? (
-            <Cart />
-          ) : (
-            <Navigate to="/" replace />
-          )
+          userData?.role === "customer" ? <Cart /> : <Navigate to="/" replace />
         }
       />
 
@@ -201,10 +186,7 @@ const App = () => {
         }
       />
 
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
