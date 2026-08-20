@@ -12,9 +12,13 @@ const Cart = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { items, totalAmount, loading, restaurant } = useSelector(
-    (state) => state.cart,
-  );
+  // Fixed selector — data lives under state.cart.cart
+  const {
+    items = [],
+    totalAmount = 0,
+    restaurant,
+  } = useSelector((state) => state.cart.cart || {});
+  const loading = useSelector((state) => state.cart.loading);
 
   const handleIncrease = async (item) => {
     await dispatch(

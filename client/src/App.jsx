@@ -17,13 +17,13 @@ import Checkout from "./pages/Checkout";
 import MyOrders from "./pages/MyOrders";
 
 import OwnerOrders from "./components/OwnerOrders";
-import DeliveryBoy from "./components/DeliveryBoy";
+import DeliveryBoy from "./pages/DeliveryBoy";
 
 import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
 import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 import useGetCart from "./hooks/useGetCart";
-import OrderTracking from "./pages/OrderTrackeing";
+import OrderTracking from "./pages/OrderTracking";
 
 export const serverUrl = "http://localhost:5000";
 

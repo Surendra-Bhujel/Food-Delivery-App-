@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { IoMdArrowBack } from "react-icons/io";
@@ -21,6 +21,13 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+// Default location → Lakeside, Pokhara
+const POKHARA_DEFAULT = {
+  lat: 28.2096,
+  lng: 83.9557,
+  address: "Lakeside, Pokhara, Nepal",
+};
 
 const PAYMENT_METHODS = [
   {
@@ -68,13 +75,16 @@ const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { items, totalAmount } = useSelector((state) => state.cart);
+  // Fixed selector
+  const { items = [], totalAmount = 0 } = useSelector(
+    (state) => state.cart.cart || {},
+  );
 
   const { userData, currentAddress, currentLatitude, currentLongitude } =
     useSelector((state) => state.user);
 
   const [formattedAddress, setFormattedAddress] = useState(
-    currentAddress || "",
+    currentAddress || POKHARA_DEFAULT.address,
   );
 
   const [contactNumber, setContactNumber] = useState(userData?.phone || "");
@@ -82,15 +92,60 @@ const Checkout = () => {
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
 
-  const [latitude, setLatitude] = useState(currentLatitude || null);
-  const [longitude, setLongitude] = useState(currentLongitude || null);
+  const [latitude, setLatitude] = useState(
+    currentLatitude || POKHARA_DEFAULT.lat,
+  );
+  const [longitude, setLongitude] = useState(
+    currentLongitude || POKHARA_DEFAULT.lng,
+  );
 
   const [locating, setLocating] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ====================== AUTO GET CURRENT LOCATION ======================
+  useEffect(() => {
+    // If we already have good coordinates from Redux, keep them
+    if (currentLatitude && currentLongitude) {
+      setLatitude(currentLatitude);
+      setLongitude(currentLongitude);
+      if (currentAddress) setFormattedAddress(currentAddress);
+      return;
+    }
+
+    // Try to get real current location
+    if (!navigator.geolocation) {
+      console.log("Geolocation not supported → using Pokhara default");
+      return;
+    }
+
+    setLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        setLatitude(lat);
+        setLongitude(lng);
+        reverseGeocode(lat, lng);
+        setLocating(false);
+      },
+      (err) => {
+        console.log(
+          "Location permission denied or failed → using Pokhara default",
+        );
+        // Keep the Pokhara default that we already set
+        setLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+  }, []);
+
+  // ====================== REVERSE GEOCODE ======================
   const reverseGeocode = async (lat, lng) => {
     try {
       setGeocoding(true);
@@ -108,7 +163,6 @@ const Checkout = () => {
       );
 
       const address = response.data.display_name || "";
-
       if (address) {
         setFormattedAddress(address);
       }
@@ -137,21 +191,16 @@ const Checkout = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude: lat, longitude: lng } = position.coords;
-
         setLatitude(lat);
         setLongitude(lng);
-
         reverseGeocode(lat, lng);
-
         setLocating(false);
       },
       (err) => {
         console.error("Geolocation error:", err.message);
-
         setError(
           "Could not get your location. Please allow location access or select on the map.",
         );
-
         setLocating(false);
       },
       {
@@ -226,10 +275,8 @@ const Checkout = () => {
     return (
       <div className="min-h-screen bg-[#fff9f6]">
         <Nav />
-
         <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center gap-4 pt-[80px]">
           <p className="text-gray-500">Your cart is empty.</p>
-
           <button
             onClick={() => navigate("/")}
             className="rounded-lg bg-[#ff4d2d] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e63e1f]"
@@ -244,7 +291,7 @@ const Checkout = () => {
   const mapCenter =
     latitude !== null && longitude !== null
       ? [latitude, longitude]
-      : [27.7, 85.3];
+      : [POKHARA_DEFAULT.lat, POKHARA_DEFAULT.lng];
 
   return (
     <div className="min-h-screen bg-[#fff9f6]">
@@ -265,6 +312,7 @@ const Checkout = () => {
         </h1>
 
         <form onSubmit={handlePlaceOrder} className="space-y-6">
+          {/* Order Summary */}
           <div className="rounded-2xl bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-bold text-gray-800">
               Order Summary
@@ -279,7 +327,6 @@ const Checkout = () => {
                   <span>
                     {item.menuItem?.name || "Item"} × {item.quantity}
                   </span>
-
                   <span>Rs. {item.priceAtAdd * item.quantity}</span>
                 </div>
               ))}
@@ -296,6 +343,7 @@ const Checkout = () => {
             </p>
           </div>
 
+          {/* Delivery Location */}
           <div className="rounded-2xl bg-white p-6 shadow-md">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800">
@@ -309,7 +357,6 @@ const Checkout = () => {
                 className="flex items-center gap-1.5 rounded-lg bg-[#ff4d2d]/10 px-3 py-1.5 text-xs font-semibold text-[#ff4d2d] transition hover:bg-[#ff4d2d]/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FiCrosshair className="h-3.5 w-3.5" />
-
                 {locating ? "Locating..." : "Use My Location"}
               </button>
             </div>
@@ -322,7 +369,7 @@ const Checkout = () => {
             <div className="h-72 w-full overflow-hidden rounded-xl border border-gray-200">
               <MapContainer
                 center={mapCenter}
-                zoom={latitude !== null ? 16 : 12}
+                zoom={16}
                 key={`${mapCenter[0]}-${mapCenter[1]}`}
                 className="h-full w-full"
               >
@@ -347,8 +394,14 @@ const Checkout = () => {
                 Looking up address...
               </p>
             )}
+            {locating && (
+              <p className="mt-2 text-xs text-blue-500">
+                Getting your current location...
+              </p>
+            )}
           </div>
 
+          {/* Delivery Details */}
           <div className="rounded-2xl bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-bold text-gray-800">
               Delivery Details
@@ -359,12 +412,11 @@ const Checkout = () => {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Delivery Address
                 </label>
-
                 <input
                   type="text"
                   value={formattedAddress}
                   onChange={(e) => setFormattedAddress(e.target.value)}
-                  placeholder="Enter your delivery address, or set it on the map above"
+                  placeholder="Enter your delivery address"
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:border-[#ff4d2d]"
                   required
                 />
@@ -374,7 +426,6 @@ const Checkout = () => {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Contact Number
                 </label>
-
                 <input
                   type="tel"
                   value={contactNumber}
@@ -389,7 +440,6 @@ const Checkout = () => {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Delivery Instructions
                 </label>
-
                 <input
                   type="text"
                   value={instructions}
@@ -403,7 +453,6 @@ const Checkout = () => {
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Special Instructions for Restaurant
                 </label>
-
                 <textarea
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
@@ -415,6 +464,7 @@ const Checkout = () => {
             </div>
           </div>
 
+          {/* Payment Method */}
           <div className="rounded-2xl bg-white p-6 shadow-md">
             <h2 className="mb-4 text-lg font-bold text-gray-800">
               Payment Method
@@ -452,7 +502,6 @@ const Checkout = () => {
                       >
                         {method.label}
                       </p>
-
                       <p className="mt-0.5 text-xs text-gray-500">
                         {method.description}
                       </p>

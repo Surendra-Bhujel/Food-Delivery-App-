@@ -13,6 +13,7 @@ import { setUserData, setCurrentLocation } from "../redux/userSlice";
 
 const Nav = ({ searchQuery, onSearchChange }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const { userData, currentCity, currentState, currentAddress } = useSelector(
     (state) => state.user,
@@ -20,26 +21,58 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
   const { restaurant } = useSelector((state) => state.owner);
 
-  // Correct selector based on your cart slice structure
-  const { items: cartItems } = useSelector((state) => state.cart.cart);
-
-  const dispatch = useDispatch();
+  const { items: cartItems } = useSelector((state) => state.cart.cart || {});
 
   const [showInfo, setShowInfo] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   const cartItemCount =
     cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-  useEffect(() => {
-    if (currentCity && currentState && currentAddress) {
-      return;
-    }
+  const isCustomer = userData?.role === "customer";
+  const isOwner = userData?.role === "owner";
 
-    if (!navigator.geolocation) {
-      console.log("Geolocation is not supported.");
-      return;
-    }
+  // ====================== FETCH PENDING ORDERS COUNT (OWNER) ======================
+  useEffect(() => {
+    if (!isOwner || !restaurant?._id) return;
+
+    const fetchPendingOrders = async () => {
+      try {
+        const response = await axios.get(
+          `${serverUrl}/api/orders/restaurant/${restaurant._id}`,
+          { withCredentials: true },
+        );
+
+        const orders = response.data.data || [];
+
+        // Count active/pending orders
+        const pending = orders.filter(
+          (order) =>
+            order.status === "pending" ||
+            order.status === "confirmed" ||
+            order.status === "preparing" ||
+            order.status === "assigned" ||
+            order.status === "out_for_delivery",
+        );
+
+        setPendingOrdersCount(pending.length);
+      } catch (err) {
+        console.error("Failed to fetch owner orders count:", err);
+      }
+    };
+
+    fetchPendingOrders();
+
+    // Refresh every 15 seconds
+    const interval = setInterval(fetchPendingOrders, 15000);
+    return () => clearInterval(interval);
+  }, [isOwner, restaurant?._id]);
+
+  // ====================== GEOLOCATION ======================
+  useEffect(() => {
+    if (currentCity && currentState && currentAddress) return;
+    if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -68,7 +101,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
             "";
 
           const state = addressData.state || addressData.province || "";
-
           const address = response.data.display_name || "";
 
           dispatch(
@@ -100,11 +132,8 @@ const Nav = ({ searchQuery, onSearchChange }) => {
       await axios.post(
         `${serverUrl}/api/auth/logout`,
         {},
-        {
-          withCredentials: true,
-        },
+        { withCredentials: true },
       );
-
       dispatch(setUserData(null));
       setShowInfo(false);
       navigate("/login");
@@ -113,14 +142,8 @@ const Nav = ({ searchQuery, onSearchChange }) => {
     }
   };
 
-  const isCustomer = userData?.role === "customer";
-
-  const isOwner = userData?.role === "owner";
-
   const handleSearchInput = (value) => {
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
+    if (onSearchChange) onSearchChange(value);
   };
 
   return (
@@ -136,7 +159,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
         <div className="md:w-[60%] lg:w-[40%] h-[50px] bg-white shadow-xl rounded-lg items-center gap-[20px] px-[20px] hidden md:flex">
           <div className="flex items-center w-[30%] overflow-hidden gap-[10px] px-[10px] border-r-[2px] border-gray-400">
             <FaLocationDot size={25} className="text-[#ff4d2d]" />
-
             <div className="w-[80%] truncate text-gray-600">
               {currentCity || "Detecting..."}
             </div>
@@ -144,7 +166,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
           <div className="w-[70%] flex items-center gap-[10px]">
             <FaSearch size={25} className="text-[#ff4d2d]" />
-
             <input
               type="text"
               value={searchQuery || ""}
@@ -178,28 +199,32 @@ const Nav = ({ searchQuery, onSearchChange }) => {
               </>
             )}
 
+            {/* Desktop Orders Button */}
             <div
               onClick={() => navigate("/owner-orders")}
               className="hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d] font-medium hover:bg-[#ff4d2d]/20"
             >
               <TbReceiptDollar size={20} />
-
               <span>My Orders</span>
 
-              <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
-                0
-              </span>
+              {pendingOrdersCount > 0 && (
+                <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
+                  {pendingOrdersCount}
+                </span>
+              )}
             </div>
 
+            {/* Mobile Orders Button */}
             <div
               onClick={() => navigate("/owner-orders")}
               className="md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d]"
             >
               <TbReceiptDollar size={20} />
-
-              <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
-                0
-              </span>
+              {pendingOrdersCount > 0 && (
+                <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
+                  {pendingOrdersCount}
+                </span>
+              )}
             </div>
           </>
         ) : (
@@ -223,7 +248,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
                 className="relative cursor-pointer"
               >
                 <IoCartOutline size={25} className="text-[#ff4d2d]" />
-
                 {cartItemCount > 0 && (
                   <span className="absolute right-[-9px] top-[-12px] flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#ff4d2d] text-[11px] font-bold text-white">
                     {cartItemCount}
@@ -278,7 +302,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
         {isCustomer && showSearch && (
           <div className="fixed top-[80px] left-[20px] right-[20px] bg-white shadow-xl rounded-lg p-[15px] flex items-center gap-[10px] z-[9998] md:hidden">
             <FaSearch size={22} className="text-[#ff4d2d]" />
-
             <input
               type="text"
               value={searchQuery || ""}
