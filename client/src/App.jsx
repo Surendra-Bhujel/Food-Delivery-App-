@@ -23,6 +23,7 @@ import useGetMe from "./hooks/useGetMe";
 import useGetCity from "./hooks/useGetCity";
 import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 import useGetCart from "./hooks/useGetCart";
+import OrderTracking from "./pages/OrderTrackeing";
 
 export const serverUrl = "http://localhost:5000";
 
@@ -183,6 +184,13 @@ const App = () => {
           ) : (
             <Navigate to="/" replace />
           )
+        }
+      />
+
+      <Route
+        path="/orders/:id/track"
+        element={
+          userData ? <OrderTracking /> : <Navigate to="/login" replace />
         }
       />
 

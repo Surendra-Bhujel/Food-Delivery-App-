@@ -44,7 +44,7 @@ const OrderCard = ({ order }) => {
 
   return (
     <div
-      onClick={() => navigate(`/order/${order._id}`)}
+      onClick={() => navigate(`/orders/${order._id}/track`)}
       className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="flex items-start gap-4">
