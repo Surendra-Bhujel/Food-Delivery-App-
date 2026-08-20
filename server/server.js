@@ -60,6 +60,27 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
+  // Client joins their personal user room (for order:new, order:assigned notifications)
+  socket.on("join_user_room", (userId) => {
+    if (!userId) return;
+    socket.join(`user_${userId}`);
+    console.log(`Socket ${socket.id} joined user_${userId}`);
+  });
+
+  // Client (customer, owner, or rider) joins a specific order's room for live tracking
+  socket.on("join_order_room", (orderId) => {
+    if (!orderId) return;
+    socket.join(`order_${orderId}`);
+    console.log(`Socket ${socket.id} joined order_${orderId}`);
+  });
+
+  // Client leaves an order's room (e.g. navigating away from tracking page)
+  socket.on("leave_order_room", (orderId) => {
+    if (!orderId) return;
+    socket.leave(`order_${orderId}`);
+    console.log(`Socket ${socket.id} left order_${orderId}`);
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });
