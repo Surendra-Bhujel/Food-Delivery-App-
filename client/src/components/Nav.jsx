@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaLocationDot } from "react-icons/fa6";
 import { FaSearch, FaPlus } from "react-icons/fa";
 import { IoCartOutline } from "react-icons/io5";
@@ -32,8 +32,46 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
   const isCustomer = userData?.role === "customer";
   const isOwner = userData?.role === "owner";
+  const isRider = userData?.role === "rider";
 
-  // ====================== FETCH PENDING ORDERS COUNT (OWNER) ======================
+  // Keep riders online while they are logged in
+  useEffect(() => {
+    if (!isRider) return;
+
+    const setRiderOnline = async () => {
+      try {
+        const response = await axios.get(
+          `${serverUrl}/api/rider/availability`,
+          {
+            withCredentials: true,
+          },
+        );
+
+        const availability = response.data?.data?.availability;
+
+        if (availability === "offline") {
+          await axios.patch(
+            `${serverUrl}/api/rider/availability`,
+            {},
+            {
+              withCredentials: true,
+            },
+          );
+
+          console.log("Rider is now online");
+        }
+      } catch (error) {
+        console.error(
+          "Failed to update rider availability:",
+          error.response?.data || error.message,
+        );
+      }
+    };
+
+    setRiderOnline();
+  }, [isRider]);
+
+  // Get the number of active orders for the owner
   useEffect(() => {
     if (!isOwner || !restaurant?._id) return;
 
@@ -41,12 +79,13 @@ const Nav = ({ searchQuery, onSearchChange }) => {
       try {
         const response = await axios.get(
           `${serverUrl}/api/orders/restaurant/${restaurant._id}`,
-          { withCredentials: true },
+          {
+            withCredentials: true,
+          },
         );
 
         const orders = response.data.data || [];
 
-        // Count active/pending orders
         const pending = orders.filter(
           (order) =>
             order.status === "pending" ||
@@ -64,14 +103,17 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
     fetchPendingOrders();
 
-    // Refresh every 15 seconds
     const interval = setInterval(fetchPendingOrders, 15000);
+
     return () => clearInterval(interval);
   }, [isOwner, restaurant?._id]);
 
-  // ====================== GEOLOCATION ======================
+  // Get the user's location
   useEffect(() => {
-    if (currentCity && currentState && currentAddress) return;
+    if (currentCity && currentState && currentAddress) {
+      return;
+    }
+
     if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
@@ -101,6 +143,7 @@ const Nav = ({ searchQuery, onSearchChange }) => {
             "";
 
           const state = addressData.state || addressData.province || "";
+
           const address = response.data.display_name || "";
 
           dispatch(
@@ -129,28 +172,70 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
   const handleLogout = async () => {
     try {
+      // Set the rider offline before logging out
+      if (isRider) {
+        try {
+          const response = await axios.get(
+            `${serverUrl}/api/rider/availability`,
+            {
+              withCredentials: true,
+            },
+          );
+
+          const availability = response.data?.data?.availability;
+
+          if (availability === "online") {
+            await axios.patch(
+              `${serverUrl}/api/rider/availability`,
+              {},
+              {
+                withCredentials: true,
+              },
+            );
+
+            console.log("Rider is now offline");
+          }
+        } catch (error) {
+          console.error(
+            "Failed to update rider status:",
+            error.response?.data || error.message,
+          );
+        }
+      }
+
       await axios.post(
         `${serverUrl}/api/auth/logout`,
         {},
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
+
       dispatch(setUserData(null));
       setShowInfo(false);
       navigate("/login");
     } catch (error) {
-      console.log("Logout Error:", error);
+      console.log("Logout Error:", error.response?.data || error.message);
     }
   };
 
   const handleSearchInput = (value) => {
-    if (onSearchChange) onSearchChange(value);
+    if (onSearchChange) {
+      onSearchChange(value);
+    }
+  };
+
+  const handleGoHome = () => {
+    setShowInfo(false);
+    setShowSearch(false);
+    navigate("/");
   };
 
   return (
     <nav className="w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 left-0 z-[9999] bg-[#fff9f6]">
       <h1
         className="text-3xl font-bold text-[#ff4d2d] cursor-pointer"
-        onClick={() => navigate("/")}
+        onClick={handleGoHome}
       >
         MithoDelivery
       </h1>
@@ -159,6 +244,7 @@ const Nav = ({ searchQuery, onSearchChange }) => {
         <div className="md:w-[60%] lg:w-[40%] h-[50px] bg-white shadow-xl rounded-lg items-center gap-[20px] px-[20px] hidden md:flex">
           <div className="flex items-center w-[30%] overflow-hidden gap-[10px] px-[10px] border-r-[2px] border-gray-400">
             <FaLocationDot size={25} className="text-[#ff4d2d]" />
+
             <div className="w-[80%] truncate text-gray-600">
               {currentCity || "Detecting..."}
             </div>
@@ -166,6 +252,7 @@ const Nav = ({ searchQuery, onSearchChange }) => {
 
           <div className="w-[70%] flex items-center gap-[10px]">
             <FaSearch size={25} className="text-[#ff4d2d]" />
+
             <input
               type="text"
               value={searchQuery || ""}
@@ -199,7 +286,6 @@ const Nav = ({ searchQuery, onSearchChange }) => {
               </>
             )}
 
-            {/* Desktop Orders Button */}
             <div
               onClick={() => navigate("/owner-orders")}
               className="hidden md:flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d] font-medium hover:bg-[#ff4d2d]/20"
@@ -214,12 +300,12 @@ const Nav = ({ searchQuery, onSearchChange }) => {
               )}
             </div>
 
-            {/* Mobile Orders Button */}
             <div
               onClick={() => navigate("/owner-orders")}
               className="md:hidden flex items-center gap-2 cursor-pointer relative px-3 py-1 rounded-lg text-[#ff4d2d]"
             >
               <TbReceiptDollar size={20} />
+
               {pendingOrdersCount > 0 && (
                 <span className="absolute -right-2 -top-2 text-xs font-bold text-white bg-[#ff4d2d] rounded-full px-[6px] py-[1px]">
                   {pendingOrdersCount}
@@ -248,6 +334,7 @@ const Nav = ({ searchQuery, onSearchChange }) => {
                 className="relative cursor-pointer"
               >
                 <IoCartOutline size={25} className="text-[#ff4d2d]" />
+
                 {cartItemCount > 0 && (
                   <span className="absolute right-[-9px] top-[-12px] flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#ff4d2d] text-[11px] font-bold text-white">
                     {cartItemCount}
@@ -256,12 +343,14 @@ const Nav = ({ searchQuery, onSearchChange }) => {
               </div>
             )}
 
-            <button
-              onClick={() => navigate("/my-orders")}
-              className="hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20 cursor-pointer"
-            >
-              My Orders
-            </button>
+            {isCustomer && (
+              <button
+                onClick={() => navigate("/my-orders")}
+                className="hidden md:block px-3 py-1 rounded-lg bg-[#ff4d2d]/10 text-[#ff4d2d] text-sm font-medium hover:bg-[#ff4d2d]/20 cursor-pointer"
+              >
+                My Orders
+              </button>
+            )}
           </>
         )}
 
@@ -302,6 +391,7 @@ const Nav = ({ searchQuery, onSearchChange }) => {
         {isCustomer && showSearch && (
           <div className="fixed top-[80px] left-[20px] right-[20px] bg-white shadow-xl rounded-lg p-[15px] flex items-center gap-[10px] z-[9998] md:hidden">
             <FaSearch size={22} className="text-[#ff4d2d]" />
+
             <input
               type="text"
               value={searchQuery || ""}

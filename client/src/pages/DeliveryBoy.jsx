@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { FiPackage, FiPhone, FiMapPin, FiNavigation } from "react-icons/fi";
 import { MdAccessTime } from "react-icons/md";
@@ -27,6 +27,7 @@ const homeMarker = new L.Icon({
 
 const DeliveryBoy = () => {
   const { userData } = useSelector((state) => state.user);
+
   const [isOnline, setIsOnline] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
   const [deliveries, setDeliveries] = useState([]);
@@ -35,24 +36,31 @@ const DeliveryBoy = () => {
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(null);
+
   const watchIdRef = useRef(null);
   const pollingRef = useRef(null);
 
-  const fetchDeliveries = async (showLoading) => {
+  // FETCH DELIVERIES
+
+  const fetchDeliveries = async (showLoading = false) => {
     try {
       if (showLoading) {
         setLoading(true);
       }
+
       setError(false);
-      const response = await axios.get(serverUrl + "/api/rider/my-deliveries", {
+
+      const response = await axios.get(`${serverUrl}/api/rider/my-deliveries`, {
         withCredentials: true,
       });
+
       setDeliveries(response.data.data || []);
     } catch (err) {
       console.error(
         "Fetch deliveries error:",
         err.response ? err.response.data : err.message,
       );
+
       setError(true);
     } finally {
       if (showLoading) {
@@ -61,35 +69,94 @@ const DeliveryBoy = () => {
     }
   };
 
+  // FETCH CURRENT AVAILABILITY
+
   const fetchAvailability = async () => {
     try {
-      const response = await axios.get(serverUrl + "/api/rider/availability", {
+      const response = await axios.get(`${serverUrl}/api/rider/availability`, {
         withCredentials: true,
       });
-      const availability =
-        response.data && response.data.data
-          ? response.data.data.availability
-          : null;
+
+      const availability = response.data?.data?.availability || null;
+
       setIsOnline(availability === "online");
+
+      return availability;
     } catch (err) {
       console.error(
         "Fetch availability error:",
         err.response ? err.response.data : err.message,
       );
-      if (userData && userData.availability) {
+
+      if (userData?.availability) {
         setIsOnline(userData.availability === "online");
       }
+
+      return null;
     }
   };
 
-  useEffect(() => {
-    fetchAvailability();
-    fetchDeliveries(true);
-  }, []);
+  // AUTOMATICALLY SET RIDER ONLINE
 
-  // Resume tracking automatically for any order that's already
-  // out_for_delivery when the page loads/refreshes (e.g. after a refresh,
-  // trackingOrderId resets even though the order itself is still active).
+  const setRiderOnline = async () => {
+    try {
+      const currentAvailability = await fetchAvailability();
+
+      // Already online - nothing to do.
+      if (currentAvailability === "online") {
+        return;
+      }
+
+      // Rider is offline, so use the existing toggle endpoint
+      // to change the backend status to online.
+      if (currentAvailability === "offline") {
+        const response = await axios.patch(
+          `${serverUrl}/api/rider/availability`,
+          {},
+          {
+            withCredentials: true,
+          },
+        );
+
+        const newAvailability = response.data?.data?.availability || null;
+
+        setIsOnline(newAvailability === "online");
+
+        console.log("Rider availability after login:", newAvailability);
+
+        return;
+      }
+
+      // If the backend did not return a usable availability value,
+      // don't blindly toggle the status.
+      console.warn(
+        "Could not determine rider availability. Automatic online status skipped.",
+      );
+    } catch (err) {
+      console.error(
+        "Set rider online error:",
+        err.response ? err.response.data : err.message,
+      );
+    }
+  };
+
+  // INITIAL LOAD
+
+  useEffect(() => {
+    if (!userData || userData.role !== "rider") {
+      return;
+    }
+
+    const initializeRider = async () => {
+      await setRiderOnline();
+      await fetchDeliveries(true);
+    };
+
+    initializeRider();
+  }, [userData]);
+
+  // RESUME ACTIVE DELIVERY TRACKING
+
   useEffect(() => {
     const activeDelivery = deliveries.find(
       (order) => order.status === "out_for_delivery",
@@ -100,17 +167,22 @@ const DeliveryBoy = () => {
     }
   }, [deliveries]);
 
+  // POLL DELIVERIES WHEN ONLINE
+
   useEffect(() => {
     if (!isOnline) {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
       }
+
       return;
     }
+
     pollingRef.current = setInterval(() => {
       fetchDeliveries(false);
     }, 5000);
+
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
@@ -119,56 +191,69 @@ const DeliveryBoy = () => {
     };
   }, [isOnline]);
 
+  // TOGGLE AVAILABILITY
+
   const handleToggleAvailability = async () => {
     try {
       setTogglingAvailability(true);
+
       const response = await axios.patch(
-        serverUrl + "/api/rider/availability",
+        `${serverUrl}/api/rider/availability`,
         {},
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
-      const availability =
-        response.data && response.data.data
-          ? response.data.data.availability
-          : null;
+
+      const availability = response.data?.data?.availability || null;
+
       setIsOnline(availability === "online");
+
       await fetchDeliveries(false);
     } catch (err) {
       console.error(
         "Toggle availability error:",
         err.response ? err.response.data : err.message,
       );
-      alert(
-        (err.response && err.response.data && err.response.data.message) ||
-          "Failed to update availability.",
-      );
+
+      alert(err.response?.data?.message || "Failed to update availability.");
     } finally {
       setTogglingAvailability(false);
     }
   };
 
+  // SEND LOCATION UPDATE
+
   const sendLocationUpdate = async (orderId, position) => {
     try {
       const coords = position.coords;
+
       const latitude = coords.latitude;
       const longitude = coords.longitude;
       const accuracy = coords.accuracy;
       const speed = coords.speed;
       const heading = coords.heading;
-      setCurrentPosition({ latitude: latitude, longitude: longitude });
+
+      setCurrentPosition({
+        latitude,
+        longitude,
+      });
+
       await axios.post(
-        serverUrl + "/api/rider/location",
+        `${serverUrl}/api/rider/location`,
         {
-          orderId: orderId,
-          latitude: latitude,
-          longitude: longitude,
+          orderId,
+          latitude,
+          longitude,
           accuracy:
             accuracy !== null && accuracy !== undefined ? accuracy : undefined,
           speed: speed !== null && speed !== undefined ? speed : undefined,
           heading:
             heading !== null && heading !== undefined ? heading : undefined,
         },
-        { withCredentials: true },
+        {
+          withCredentials: true,
+        },
       );
     } catch (err) {
       console.error(
@@ -178,28 +263,39 @@ const DeliveryBoy = () => {
     }
   };
 
+  // STOP TRACKING
+
   const stopTracking = () => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
+
       watchIdRef.current = null;
     }
+
     setTrackingOrderId(null);
     setCurrentPosition(null);
   };
 
+  // START TRACKING
+
   const startTracking = (orderId) => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser.");
+
       return false;
     }
+
     stopTracking();
+
     setTrackingOrderId(orderId);
+
     watchIdRef.current = navigator.geolocation.watchPosition(
-      function (position) {
+      (position) => {
         sendLocationUpdate(orderId, position);
       },
-      function (err) {
+      (err) => {
         console.error("Geolocation watch error:", err.message);
+
         if (err.code === 1) {
           alert(
             "Location permission was denied. Please allow location access to share your delivery location.",
@@ -212,22 +308,28 @@ const DeliveryBoy = () => {
         timeout: 15000,
       },
     );
+
     return true;
   };
+
+  // START DELIVERY
 
   const handleStartDelivery = async (orderId) => {
     try {
       setUpdatingOrderId(orderId);
+
       if (!navigator.geolocation) {
         alert("Geolocation is not supported by your browser.");
+
         return;
       }
-      await new Promise(function (resolve, reject) {
+
+      await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          function () {
+          () => {
             resolve();
           },
-          function (err) {
+          (err) => {
             if (err.code === 1) {
               reject(
                 new Error(
@@ -245,20 +347,28 @@ const DeliveryBoy = () => {
           },
         );
       });
+
       await axios.put(
-        serverUrl + "/api/orders/" + orderId + "/status",
-        { status: "out_for_delivery" },
-        { withCredentials: true },
+        `${serverUrl}/api/orders/${orderId}/status`,
+        {
+          status: "out_for_delivery",
+        },
+        {
+          withCredentials: true,
+        },
       );
+
       startTracking(orderId);
+
       await fetchDeliveries(false);
     } catch (err) {
       console.error(
         "Start delivery error:",
         err.response ? err.response.data : err.message,
       );
+
       alert(
-        (err.response && err.response.data && err.response.data.message) ||
+        err.response?.data?.message ||
           err.message ||
           "Failed to start delivery.",
       );
@@ -267,61 +377,77 @@ const DeliveryBoy = () => {
     }
   };
 
+  // MARK DELIVERED
+
   const handleMarkDelivered = async (orderId) => {
     try {
       setUpdatingOrderId(orderId);
+
       await axios.put(
-        serverUrl + "/api/orders/" + orderId + "/status",
-        { status: "delivered" },
-        { withCredentials: true },
+        `${serverUrl}/api/orders/${orderId}/status`,
+        {
+          status: "delivered",
+        },
+        {
+          withCredentials: true,
+        },
       );
+
       if (trackingOrderId === orderId) {
         stopTracking();
       }
-      setDeliveries(function (previousDeliveries) {
-        return previousDeliveries.filter(function (delivery) {
-          return delivery._id !== orderId;
-        });
-      });
+
+      setDeliveries((previousDeliveries) =>
+        previousDeliveries.filter((delivery) => delivery._id !== orderId),
+      );
+
       await fetchDeliveries(false);
     } catch (err) {
       console.error(
         "Mark delivered error:",
         err.response ? err.response.data : err.message,
       );
+
       alert(
-        (err.response && err.response.data && err.response.data.message) ||
-          "Failed to mark order as delivered.",
+        err.response?.data?.message || "Failed to mark order as delivered.",
       );
     } finally {
       setUpdatingOrderId(null);
     }
   };
 
-  useEffect(function () {
-    return function () {
+  // CLEANUP
+
+  useEffect(() => {
+    return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
+
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
     };
   }, []);
 
+  // UI
+
   return (
     <div className="min-h-screen bg-[#fff9f6]">
       <Nav />
+
       <main className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[100px] sm:px-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              Hi, {userData && userData.username ? userData.username : "Rider"}
+              Hi, {userData?.username ? userData.username : "Rider"}
             </h1>
+
             <p className="mt-1 text-sm text-gray-600">
               Manage your deliveries here.
             </p>
           </div>
+
           <button
             onClick={handleToggleAvailability}
             disabled={togglingAvailability}
@@ -338,6 +464,7 @@ const DeliveryBoy = () => {
                 (isOnline ? "bg-green-600" : "bg-gray-500")
               }
             />
+
             {togglingAvailability
               ? "Updating..."
               : isOnline
@@ -355,10 +482,9 @@ const DeliveryBoy = () => {
             <p className="text-gray-700">
               Something went wrong loading deliveries.
             </p>
+
             <button
-              onClick={function () {
-                fetchDeliveries(true);
-              }}
+              onClick={() => fetchDeliveries(true)}
               className="mt-4 rounded-lg bg-[#ff4d2d] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#e63e1f]"
             >
               Try Again
@@ -367,9 +493,11 @@ const DeliveryBoy = () => {
         ) : deliveries.length === 0 ? (
           <div className="rounded-2xl bg-white p-10 text-center shadow-md">
             <FiPackage className="mx-auto h-12 w-12 text-gray-400" />
+
             <h3 className="mt-4 text-lg font-semibold text-gray-900">
               No active deliveries
             </h3>
+
             <p className="mt-2 text-sm text-gray-700">
               {isOnline
                 ? "You are online. New orders assigned to you will appear here."
@@ -378,9 +506,11 @@ const DeliveryBoy = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {deliveries.map(function (order) {
+            {deliveries.map((order) => {
               const isTracking = trackingOrderId === order._id;
+
               const isUpdating = updatingOrderId === order._id;
+
               const orderDate = new Date(order.createdAt).toLocaleDateString(
                 "en-US",
                 {
@@ -390,22 +520,24 @@ const DeliveryBoy = () => {
                   minute: "2-digit",
                 },
               );
-              const customerPhone =
-                order.customer && order.customer.phone
-                  ? order.customer.phone
-                  : "";
-              const phoneHref = customerPhone ? "tel:" + customerPhone : "";
-              const destCoords =
-                order.deliveryAddress && order.deliveryAddress.coordinates
-                  ? order.deliveryAddress.coordinates
-                  : null;
+
+              const customerPhone = order.customer?.phone || "";
+
+              const phoneHref = customerPhone ? `tel:${customerPhone}` : "";
+
+              const destCoords = order.deliveryAddress?.coordinates || null;
+
               const destLat = destCoords ? destCoords[1] : undefined;
+
               const destLng = destCoords ? destCoords[0] : undefined;
+
               const hasDestination =
                 destLat !== undefined &&
                 destLng !== undefined &&
                 !(destLat === 0 && destLng === 0);
+
               const showMap = isTracking && currentPosition;
+
               const mapCenter = showMap
                 ? [currentPosition.latitude, currentPosition.longitude]
                 : hasDestination
@@ -421,25 +553,24 @@ const DeliveryBoy = () => {
                     <div className="flex items-center gap-3">
                       <img
                         src={
-                          (order.restaurant && order.restaurant.logo) ||
+                          order.restaurant?.logo ||
                           "https://via.placeholder.com/60x60?text=R"
                         }
-                        alt={
-                          (order.restaurant && order.restaurant.name) ||
-                          "Restaurant"
-                        }
+                        alt={order.restaurant?.name || "Restaurant"}
                         className="h-12 w-12 rounded-lg object-cover"
                       />
+
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {(order.restaurant && order.restaurant.name) ||
-                            "Restaurant"}
+                          {order.restaurant?.name || "Restaurant"}
                         </p>
+
                         <p className="text-xs font-medium text-gray-600">
-                          {"Order #" + order._id.slice(-6).toUpperCase()}
+                          Order #{order._id.slice(-6).toUpperCase()}
                         </p>
                       </div>
                     </div>
+
                     <span
                       className={
                         "whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold " +
@@ -456,12 +587,12 @@ const DeliveryBoy = () => {
 
                   <div className="mt-3 flex items-start gap-2 rounded-lg bg-gray-50 p-3 text-xs font-medium text-gray-700">
                     <FiMapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+
                     <div>
                       <p className="text-gray-500">Pickup from</p>
+
                       <p>
-                        {(order.restaurant &&
-                          order.restaurant.address &&
-                          order.restaurant.address.formattedAddress) ||
+                        {order.restaurant?.address?.formattedAddress ||
                           "Restaurant address"}
                       </p>
                     </div>
@@ -469,17 +600,18 @@ const DeliveryBoy = () => {
 
                   <div className="mt-2 flex items-start gap-2 rounded-lg bg-gray-50 p-3 text-xs font-medium text-gray-700">
                     <FiNavigation className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+
                     <div>
                       <p className="text-gray-500">Deliver to</p>
+
                       <p>
-                        {(order.deliveryAddress &&
-                          order.deliveryAddress.formattedAddress) ||
+                        {order.deliveryAddress?.formattedAddress ||
                           "Delivery address not available"}
                       </p>
-                      {order.deliveryAddress &&
-                      order.deliveryAddress.instructions ? (
+
+                      {order.deliveryAddress?.instructions ? (
                         <p className="mt-1 italic text-gray-600">
-                          {"Note: " + order.deliveryAddress.instructions}
+                          Note: {order.deliveryAddress.instructions}
                         </p>
                       ) : null}
                     </div>
@@ -497,6 +629,7 @@ const DeliveryBoy = () => {
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                           />
+
                           <Marker
                             position={[
                               currentPosition.latitude,
@@ -504,6 +637,7 @@ const DeliveryBoy = () => {
                             ]}
                             icon={scooterMarker}
                           />
+
                           {hasDestination ? (
                             <Marker
                               position={[destLat, destLng]}
@@ -512,6 +646,7 @@ const DeliveryBoy = () => {
                           ) : null}
                         </MapContainer>
                       </div>
+
                       <div className="flex items-center gap-1.5 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">
                         <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
                         Sharing your live location
@@ -520,10 +655,8 @@ const DeliveryBoy = () => {
                   ) : null}
 
                   <div className="mt-2 flex items-center justify-between rounded-lg bg-gray-50 p-3 text-xs font-medium text-gray-700">
-                    <span>
-                      {(order.customer && order.customer.username) ||
-                        "Customer"}
-                    </span>
+                    <span>{order.customer?.username || "Customer"}</span>
+
                     {phoneHref ? (
                       <a
                         href={phoneHref}
@@ -540,28 +673,26 @@ const DeliveryBoy = () => {
                       <MdAccessTime className="h-3.5 w-3.5" />
                       {orderDate}
                     </span>
+
                     <span className="font-bold text-[#ff4d2d]">
-                      {"Rs. " + order.totalAmount}
+                      Rs. {order.totalAmount}
                     </span>
                   </div>
 
                   <div className="mt-4 flex gap-2">
                     {order.status === "assigned" ? (
                       <button
-                        onClick={function () {
-                          handleStartDelivery(order._id);
-                        }}
+                        onClick={() => handleStartDelivery(order._id)}
                         disabled={isUpdating}
                         className="flex-1 rounded-lg bg-[#ff4d2d] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#e63e1f] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isUpdating ? "Starting..." : "Start Delivery"}
                       </button>
                     ) : null}
+
                     {order.status === "out_for_delivery" ? (
                       <button
-                        onClick={function () {
-                          handleMarkDelivered(order._id);
-                        }}
+                        onClick={() => handleMarkDelivered(order._id)}
                         disabled={isUpdating}
                         className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
