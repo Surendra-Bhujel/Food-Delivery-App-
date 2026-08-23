@@ -1,5 +1,6 @@
 import MenuItem from "../models/MenuItem.js";
 import Restaurant from "../models/Restaurant.js";
+import uploadOnCloudinary from "../utils/uploadOnCloudinary.js";
 
 // Add Menu Item
 export const addMenuItem = async (req, res) => {
@@ -49,11 +50,14 @@ export const addMenuItem = async (req, res) => {
       });
     }
 
-    // Create image URL
+    // Create image URL — upload to Cloudinary if a file was provided
     let imageUrl = "https://via.placeholder.com/300x200?text=Food+Item";
 
     if (req.file) {
-      imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+      const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
+      if (cloudinaryUrl) {
+        imageUrl = cloudinaryUrl;
+      }
     }
 
     // Create menu item
@@ -117,7 +121,10 @@ export const updateMenuItem = async (req, res) => {
 
     // Only overwrite the image if a new file was uploaded
     if (req.file) {
-      updateData.image = `http://localhost:5000/uploads/${req.file.filename}`;
+      const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
+      if (cloudinaryUrl) {
+        updateData.image = cloudinaryUrl;
+      }
     }
 
     // Cast numeric/boolean fields that arrive as strings from FormData

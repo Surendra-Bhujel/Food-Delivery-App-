@@ -1,5 +1,6 @@
 import Restaurant from "../models/Restaurant.js";
 import User from "../models/User.js";
+import uploadOnCloudinary from "../utils/uploadOnCloudinary.js";
 
 // CREATE RESTAURANT
 // POST /api/restaurants
@@ -7,9 +8,6 @@ import User from "../models/User.js";
 
 export const createRestaurant = async (req, res) => {
   try {
-    console.log("Restaurant body:", req.body);
-    console.log("Restaurant file:", req.file);
-
     const {
       name,
       description,
@@ -82,11 +80,14 @@ export const createRestaurant = async (req, res) => {
       parsedCuisineType = ["Other"];
     }
 
-    // Restaurant image
+    // Restaurant image — upload to Cloudinary if a file was provided
     let logo = "https://via.placeholder.com/200x200?text=Restaurant";
 
     if (req.file) {
-      logo = `http://localhost:5000/uploads/${req.file.filename}`;
+      const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
+      if (cloudinaryUrl) {
+        logo = cloudinaryUrl;
+      }
     }
 
     // Create restaurant
@@ -465,10 +466,12 @@ export const updateRestaurant = async (req, res) => {
       restaurant.minOrderAmount = Number(minOrderAmount);
     }
 
-    // UPDATE IMAGE
-
+    // UPDATE IMAGE — upload to Cloudinary if a new file was provided
     if (req.file) {
-      restaurant.logo = `http://localhost:5000/uploads/${req.file.filename}`;
+      const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
+      if (cloudinaryUrl) {
+        restaurant.logo = cloudinaryUrl;
+      }
     }
 
     // Save

@@ -7,21 +7,24 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (file) => {
+const uploadOnCloudinary = async (localFilePath) => {
   try {
-    if (!file) return null;
+    if (!localFilePath) return null;
 
-    const result = await cloudinary.uploader.upload(file);
+    const result = await cloudinary.uploader.upload(localFilePath, {
+      folder: "food-delivery-app",
+      resource_type: "image",
+    });
 
-    fs.unlinkSync(file);
+    fs.unlinkSync(localFilePath);
 
     return result.secure_url;
   } catch (error) {
-    if (file && fs.existsSync(file)) {
-      fs.unlinkSync(file);
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
     }
 
-    console.log("Cloudinary upload error:", error);
+    console.error("Cloudinary upload error:", error);
     return null;
   }
 };
