@@ -25,7 +25,7 @@ import useGetMyRestaurant from "./hooks/useGetMyRestaurant";
 import useGetCart from "./hooks/useGetCart";
 import OrderTracking from "./pages/OrderTracking";
 
-export const serverUrl = "http://localhost:5000";
+export const serverUrl = import.meta.env.VITE_SERVER_URL;
 
 const LoadingScreen = () => {
   return (
