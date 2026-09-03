@@ -6,9 +6,22 @@ import bcrypt from "bcryptjs";
 // Generate JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+    expiresIn: process.env.JWT_EXPIRE || "7d",
   });
 };
+
+// Cookie options
+const getCookieOptions = () => ({
+  expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  httpOnly: true,
+
+  // HTTPS is required for SameSite=None
+  secure: process.env.NODE_ENV === "production",
+
+  // Local development = lax
+  // Production Render frontend/backend = none
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+});
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -58,7 +71,7 @@ export const register = async (req, res) => {
       });
     }
 
-    // Create new user
+    // Create user
     const user = await User.create({
       username,
       email,
@@ -73,18 +86,10 @@ export const register = async (req, res) => {
     // Hide password
     user.password = undefined;
 
-    // Cookie options
-    const cookieOptions = {
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    };
+    // Send cookie
+    res.cookie("token", token, getCookieOptions());
 
-    // Send token in cookie
-    res.cookie("token", token, cookieOptions);
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       token,
       user,
@@ -92,7 +97,7 @@ export const register = async (req, res) => {
   } catch (error) {
     console.error("Register Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error registering user",
       error: error.message,
@@ -137,7 +142,10 @@ export const login = async (req, res) => {
 
     // Update last login
     user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false });
+
+    await user.save({
+      validateBeforeSave: false,
+    });
 
     // Generate JWT
     const token = generateToken(user._id);
@@ -145,26 +153,18 @@ export const login = async (req, res) => {
     // Hide password
     user.password = undefined;
 
-    // Cookie options
-    const cookieOptions = {
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    };
-
     // Send cookie
-    res.cookie("token", token, cookieOptions);
+    res.cookie("token", token, getCookieOptions());
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       token,
       user,
     });
   } catch (error) {
-    console.error("Login Error:", error.message);
-    
-    res.status(500).json({
+    console.error("Login Error:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Error logging in",
       error: error.message,
@@ -188,14 +188,14 @@ export const getMe = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       user,
     });
   } catch (error) {
     console.error("Get User Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error fetching user",
       error: error.message,
@@ -212,17 +212,17 @@ export const logout = async (req, res) => {
       expires: new Date(0),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Logged out successfully",
     });
   } catch (error) {
     console.error("Logout Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error logging out",
       error: error.message,
@@ -230,6 +230,7 @@ export const logout = async (req, res) => {
   }
 };
 
+// @desc Send OTP
 export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -258,6 +259,8 @@ export const sendOtp = async (req, res) => {
       message: "OTP sent successfully.",
     });
   } catch (error) {
+    console.error("Send OTP Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -265,6 +268,7 @@ export const sendOtp = async (req, res) => {
   }
 };
 
+// @desc Verify OTP
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -289,6 +293,8 @@ export const verifyOtp = async (req, res) => {
       message: "OTP verified successfully",
     });
   } catch (error) {
+    console.error("Verify OTP Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -296,6 +302,7 @@ export const verifyOtp = async (req, res) => {
   }
 };
 
+// @desc Reset password
 export const resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
@@ -322,6 +329,8 @@ export const resetPassword = async (req, res) => {
       message: "Password reset successfully",
     });
   } catch (error) {
+    console.error("Reset Password Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -329,6 +338,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// @desc Google authentication
 export const googleAuth = async (req, res) => {
   try {
     const { fullName, email, phone, role, googleId } = req.body;
@@ -340,21 +350,18 @@ export const googleAuth = async (req, res) => {
         username: fullName,
         email,
         phone,
-        role,
+        role: role || "customer",
         googleId,
       });
     }
 
     const token = generateToken(user._id);
 
+    // Hide password
     user.password = undefined;
 
-    res.cookie("token", token, {
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    });
+    // Send cookie
+    res.cookie("token", token, getCookieOptions());
 
     return res.status(200).json({
       success: true,
@@ -362,6 +369,8 @@ export const googleAuth = async (req, res) => {
       user,
     });
   } catch (error) {
+    console.error("Google Auth Error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message,
