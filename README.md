@@ -1027,7 +1027,7 @@ This project is licensed under the **ISC License** - see LICENSE file for detail
 **Surendra Bhujel**
 
 - 🔗 GitHub: [@Surendra-Bhujel](https://github.com/Surendra-Bhujel)
-- 📧 Email: [your-email@example.com](mailto:your-email@example.com)
+- 📧 Email: [your-email@example.com](mailto:magarsurendra81@gmail.com)
 
 ---
 
