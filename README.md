@@ -10,6 +10,10 @@
 ![Socket.io](https://img.shields.io/badge/Socket.io-4.8-010101?style=flat-square&logo=socket.io)
 ![License](https://img.shields.io/badge/License-ISC-green?style=flat-square)
 
+## 🌐 Live Demo
+
+**Live Application:** https://food-delivery-app-frontend-1g8i.onrender.com
+
 ---
 
 ## ✨ Overview
